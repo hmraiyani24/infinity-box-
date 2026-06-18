@@ -1,3 +1,6 @@
+import crypto from "crypto";
+import fs from "fs";
+import path from "path";
 import { prisma } from "../src/lib/prisma";
 import { BookingStatus, PaymentMode, Role, TIME_SLOTS } from "../src/lib/constants";
 import { bookingSnapshot } from "../src/lib/server";
@@ -193,6 +196,18 @@ async function main() {
       after: JSON.stringify({ message: "Seeded Infinity Box demo data" }),
     },
   });
+
+  ensureNextAuthSecret();
+}
+
+function ensureNextAuthSecret() {
+  const envPath = path.resolve(".env.local");
+  const envContent = fs.existsSync(envPath) ? fs.readFileSync(envPath, "utf8") : "";
+  if (!envContent.includes("NEXTAUTH_SECRET")) {
+    const secret = crypto.randomBytes(32).toString("hex");
+    fs.appendFileSync(envPath, `\nNEXTAUTH_SECRET=${secret}\n`);
+    console.log("Generated NEXTAUTH_SECRET in .env.local");
+  }
 }
 
 main()

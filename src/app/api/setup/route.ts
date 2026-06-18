@@ -1,6 +1,3 @@
-import crypto from "crypto";
-import fs from "fs";
-import path from "path";
 import { NextResponse } from "next/server";
 import { TIME_SLOTS } from "@/lib/constants";
 import { hashSecret } from "@/lib/otp";
@@ -14,7 +11,6 @@ type SetupBody = {
 };
 
 const supervisorUsernames = ["rakesh", "hiren", "nikunj", "hardik"];
-const defaultSecretValues = new Set(["", "any-random-32-char-string", "infinity-box-local-development-secret-change-in-production"]);
 
 export async function GET() {
   const settings = await prisma.settings.findUnique({ where: { id: "singleton" } });
@@ -44,8 +40,6 @@ export async function POST(req: Request) {
   if (Object.keys(errors).length) {
     return NextResponse.json({ error: "Please fix the highlighted fields", errors }, { status: 400 });
   }
-
-  ensureNextAuthSecret();
 
   await prisma.$transaction(async (tx) => {
     await tx.user.update({
@@ -112,26 +106,4 @@ function validateSetupBody(body: SetupBody) {
 
 function isValidPassword(value?: string) {
   return typeof value === "string" && value.length >= 8;
-}
-
-function ensureNextAuthSecret() {
-  const current = process.env.NEXTAUTH_SECRET || "";
-  if (!defaultSecretValues.has(current)) return;
-
-  const secret = crypto.randomBytes(32).toString("hex");
-  process.env.NEXTAUTH_SECRET = secret;
-  const envLocalPath = path.resolve(".env.local");
-  const line = `NEXTAUTH_SECRET=${secret}\n`;
-
-  if (!fs.existsSync(envLocalPath)) {
-    fs.writeFileSync(envLocalPath, line);
-    return;
-  }
-
-  const existing = fs.readFileSync(envLocalPath, "utf8");
-  if (/^NEXTAUTH_SECRET=/m.test(existing)) {
-    fs.writeFileSync(envLocalPath, existing.replace(/^NEXTAUTH_SECRET=.*$/m, `NEXTAUTH_SECRET=${secret}`));
-  } else {
-    fs.appendFileSync(envLocalPath, `${existing.endsWith("\n") ? "" : "\n"}${line}`);
-  }
 }
