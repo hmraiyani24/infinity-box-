@@ -1,0 +1,140 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id                    String               @id @default(cuid())
+  username              String               @unique
+  passwordHash          String?
+  role                  String
+  displayName           String
+  isActive              Boolean              @default(true)
+  isFirstLogin          Boolean              @default(true)
+  otpHash               String?
+  otpExpiresAt          DateTime?
+  otpUsed               Boolean              @default(false)
+  createdAt             DateTime             @default(now())
+
+  bookings              Booking[]            @relation("CreatedBy")
+  verifiedBookings      Booking[]            @relation("VerifiedBy")
+  deletedBookings       Booking[]            @relation("DeletedBy")
+  cashLedger            CashLedger[]
+  settlements           CashSettlement[]     @relation("SettledBy")
+  supervisorSettlements CashSettlement[]     @relation("SupervisorOf")
+  auditLogs             AuditLog[]
+  editRequests          BookingEditRequest[] @relation("EditRequests")
+  reviewedEdits         BookingEditRequest[] @relation("ReviewedEdits")
+}
+
+model Booking {
+  id                    String               @id @default(cuid())
+  businessDate          DateTime
+  turfNumber            Int
+  timeSlot              String
+  timeOverride          String?
+  customerName          String
+  phone                 String
+  totalAmount           Float
+  advanceAmount         Float                @default(0)
+  paymentMode           String
+  cashAmount            Float                @default(0)
+  staffName             String
+  notes                 String?
+  status                String               @default("PENDING")
+
+  createdById           String
+  createdBy             User                 @relation("CreatedBy", fields: [createdById], references: [id])
+  createdAt             DateTime             @default(now())
+
+  verifiedById          String?
+  verifiedBy            User?                @relation("VerifiedBy", fields: [verifiedById], references: [id])
+  verifiedAt            DateTime?
+
+  deletedById           String?
+  deletedBy             User?                @relation("DeletedBy", fields: [deletedById], references: [id])
+  deletedAt             DateTime?
+  deleteReason          String?
+
+  cashLedgerEntries     CashLedger[]
+  auditLogs             AuditLog[]
+  editRequests          BookingEditRequest[]
+
+  @@index([businessDate, turfNumber, timeSlot, status])
+}
+
+model BookingEditRequest {
+  id                    String               @id @default(cuid())
+  bookingId             String
+  booking               Booking              @relation(fields: [bookingId], references: [id])
+  requestedById         String
+  requestedBy           User                 @relation("EditRequests", fields: [requestedById], references: [id])
+  originalData          String
+  proposedData          String
+  status                String               @default("PENDING_APPROVAL")
+  reviewedById          String?
+  reviewedBy            User?                @relation("ReviewedEdits", fields: [reviewedById], references: [id])
+  reviewedAt            DateTime?
+  rejectReason          String?
+  createdAt             DateTime             @default(now())
+
+  @@index([status, createdAt])
+}
+
+model CashLedger {
+  id                    String               @id @default(cuid())
+  supervisorId          String
+  supervisor            User                 @relation(fields: [supervisorId], references: [id])
+  bookingId             String
+  booking               Booking              @relation(fields: [bookingId], references: [id])
+  cashAmount            Float
+  businessDate          DateTime
+  isSettled             Boolean              @default(false)
+  settlementId          String?
+  settlement            CashSettlement?      @relation(fields: [settlementId], references: [id])
+  createdAt             DateTime             @default(now())
+
+  @@index([supervisorId, isSettled])
+}
+
+model CashSettlement {
+  id                    String               @id @default(cuid())
+  supervisorId          String
+  supervisor            User                 @relation("SupervisorOf", fields: [supervisorId], references: [id])
+  settledById           String
+  settledBy             User                 @relation("SettledBy", fields: [settledById], references: [id])
+  totalAmount           Float
+  fromDate              DateTime
+  toDate                DateTime
+  notes                 String?
+  settledAt             DateTime             @default(now())
+  ledgerEntries         CashLedger[]
+}
+
+model AuditLog {
+  id                    String               @id @default(cuid())
+  bookingId             String?
+  booking               Booking?             @relation(fields: [bookingId], references: [id])
+  userId                String
+  user                  User                 @relation(fields: [userId], references: [id])
+  action                String
+  before                String?
+  after                 String?
+  timestamp             DateTime             @default(now())
+
+  @@index([timestamp])
+}
+
+model Settings {
+  id                    String               @id @default("singleton")
+  adminPin              String
+  turfs                 String
+  timeSlots             String
+  paymentModes          String
+  isSetupComplete       Boolean              @default(false)
+  updatedAt             DateTime             @updatedAt
+}
