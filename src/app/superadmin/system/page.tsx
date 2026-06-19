@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { PageHeader } from "@/components/DashboardShell";
 import { Role } from "@/lib/constants";
 import { prisma } from "@/lib/prisma";

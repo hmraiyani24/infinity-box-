@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { NextResponse } from "next/server";
 import { TIME_SLOTS } from "@/lib/constants";
 import { hashSecret } from "@/lib/otp";

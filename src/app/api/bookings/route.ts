@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { NextRequest, NextResponse } from "next/server";
 import { parseBusinessDate } from "@/lib/businessDate";
 import { bookingSnapshot, ensureSlotAvailable, jsonError, parseBookingPayload, requireUser } from "@/lib/server";

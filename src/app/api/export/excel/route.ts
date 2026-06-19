@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { endOfMonth, endOfYear, format, startOfMonth, startOfYear } from "date-fns";
 import { Role } from "@/lib/constants";
 import { buildExcelBuffer } from "@/lib/exportHelpers";

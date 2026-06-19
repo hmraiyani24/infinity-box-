@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { NextResponse } from "next/server";
 import { Role } from "@/lib/constants";
 import { getTopClients } from "@/lib/dashboard";

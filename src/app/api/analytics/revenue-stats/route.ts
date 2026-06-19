@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { NextResponse } from "next/server";
 import { format, subMonths } from "date-fns";
 import { Role } from "@/lib/constants";

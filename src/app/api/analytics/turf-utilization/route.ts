@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { NextResponse } from "next/server";
 import { Role, TURF_COLORS } from "@/lib/constants";
 import { prisma } from "@/lib/prisma";

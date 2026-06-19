@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { RegenOtpButton, UserCreateForm } from "@/components/AdminControls";
 import { SimpleTable } from "@/components/DataViews";
 import { PageHeader } from "@/components/DashboardShell";

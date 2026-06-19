@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { NextResponse } from "next/server";
 import { getBackupStatus } from "@/lib/backup";
 import { Role } from "@/lib/constants";

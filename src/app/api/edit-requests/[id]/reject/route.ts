@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { NextRequest, NextResponse } from "next/server";
 import { EditRequestStatus, Role } from "@/lib/constants";
 import { prisma } from "@/lib/prisma";

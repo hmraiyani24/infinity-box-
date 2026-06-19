@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { NextRequest, NextResponse } from "next/server";
 import { Role } from "@/lib/constants";
 import { generateOtp, getOtpExpiry, hashSecret } from "@/lib/otp";

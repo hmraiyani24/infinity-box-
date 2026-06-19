@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import { SetPasswordForm } from "@/app/set-password/SetPasswordForm";

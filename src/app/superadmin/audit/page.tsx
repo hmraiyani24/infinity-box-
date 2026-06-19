@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { SimpleTable } from "@/components/DataViews";
 import { PageHeader } from "@/components/DashboardShell";
 import { prisma } from "@/lib/prisma";

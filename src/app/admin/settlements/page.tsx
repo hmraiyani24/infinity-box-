@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { CashSettleButton } from "@/components/AdminControls";
 import { SimpleTable } from "@/components/DataViews";
 import { PageHeader } from "@/components/DashboardShell";

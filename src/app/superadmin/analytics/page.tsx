@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { format, subMonths } from "date-fns";
 import { RevenueBarChart } from "@/components/analytics/RevenueBarChart";
 import { SlotHeatmap } from "@/components/analytics/SlotHeatmap";

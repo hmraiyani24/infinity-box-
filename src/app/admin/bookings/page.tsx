@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { BookingTable } from "@/components/DataViews";
 import { PageHeader } from "@/components/DashboardShell";
 import { BookingStatus, EditRequestStatus } from "@/lib/constants";

@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { NextRequest, NextResponse } from "next/server";
 import { BookingStatus, Role } from "@/lib/constants";
 import { normalizePhone } from "@/lib/format";
