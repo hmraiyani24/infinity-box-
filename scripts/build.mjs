@@ -23,22 +23,6 @@ function readEnvDatabaseUrl() {
   return "";
 }
 
-function ensureVercelSchema() {
-  if (!/^postgres(?:ql)?:\/\//.test(databaseUrl)) {
-    console.error(
-      [
-        "Vercel production needs a persistent PostgreSQL DATABASE_URL.",
-        "Do not use SQLite/file: URLs on Vercel because serverless storage is not persistent.",
-        "Create a Vercel Postgres/Neon/Supabase database and set DATABASE_URL in Vercel Environment Variables.",
-      ].join("\n"),
-    );
-    process.exit(1);
-  }
-
-  const schemaPath = path.join("prisma", "schema.prisma");
-  return schemaPath;
-}
-
 function ensureLocalSchema() {
   const schemaPath = path.join("prisma", "schema.prisma");
   if (!databaseUrl.startsWith("file:")) return schemaPath;
@@ -52,9 +36,7 @@ function ensureLocalSchema() {
 }
 
 if (isVercel) {
-  const schemaPath = ensureVercelSchema();
-  run(`npx prisma generate --schema=${schemaPath}`);
-  run(`npx prisma db push --schema=${schemaPath} --accept-data-loss`);
+  run("npx prisma generate --schema=prisma/schema.prisma");
 } else {
   const schemaPath = ensureLocalSchema();
   run(`npx prisma generate --schema=${schemaPath}`);
