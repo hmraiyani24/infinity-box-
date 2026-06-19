@@ -24,8 +24,13 @@ const setupUsers = [
 const supervisorUsernames = setupUsers.filter((user) => user.role === Role.SUPERVISOR).map((user) => user.username);
 
 export async function GET() {
-  const settings = await prisma.settings.findUnique({ where: { id: "singleton" } });
-  return NextResponse.json({ isSetupComplete: Boolean(settings?.isSetupComplete) });
+  try {
+    const settings = await prisma.settings.findUnique({ where: { id: "singleton" } });
+    return NextResponse.json({ isSetupComplete: Boolean(settings?.isSetupComplete) });
+  } catch (error) {
+    console.error("Setup status check failed", error);
+    return NextResponse.json({ isSetupComplete: false, error: setupErrorMessage(error) }, { status: 500 });
+  }
 }
 
 export async function POST(req: Request) {
