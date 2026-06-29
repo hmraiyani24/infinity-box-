@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { addDays, format, startOfWeek, subDays } from "date-fns";
 import { BookingActions } from "@/components/BookingActions";
 import { WeeklyGrid } from "@/components/canvas/WeeklyGrid";
@@ -25,16 +26,26 @@ export function DailyCanvas({
   totals: { total: number; count: number; pending: number; pendingAmount: number; CASH: number; DK_BANK: number; HG_BANK: number; SPLIT: number };
   pendingEditRequests: number;
 }) {
+  const searchParams = useSearchParams();
   const [localBookings, setLocalBookings] = useState(bookings);
   const [directEditBooking, setDirectEditBooking] = useState<BookingRow | null>(null);
   const [activeTurf, setActiveTurf] = useState(1);
-  const [viewMode, setViewMode] = useState<"daily" | "weekly">("daily");
+  const [viewMode, setViewMode] = useState<"daily" | "weekly">(searchParams.get("view") === "weekly" ? "weekly" : "daily");
   useEffect(() => setLocalBookings(bookings), [bookings]);
+  useEffect(() => {
+    setViewMode(searchParams.get("view") === "weekly" ? "weekly" : "daily");
+  }, [searchParams]);
   const businessDateObj = useMemo(() => new Date(`${businessDate}T00:00:00`), [businessDate]);
   const dateString = format(businessDateObj, "yyyy-MM-dd");
-  const weekStart = format(startOfWeek(businessDateObj, { weekStartsOn: 1 }), "yyyy-MM-dd");
-  const prev = format(subDays(businessDateObj, 1), "yyyy-MM-dd");
-  const next = format(addDays(businessDateObj, 1), "yyyy-MM-dd");
+  const weekStartObj = startOfWeek(businessDateObj, { weekStartsOn: 1 });
+  const weekStart = format(weekStartObj, "yyyy-MM-dd");
+  const weekEndObj = addDays(weekStartObj, 6);
+  const prev = format(viewMode === "weekly" ? subDays(weekStartObj, 7) : subDays(businessDateObj, 1), "yyyy-MM-dd");
+  const next = format(viewMode === "weekly" ? addDays(weekStartObj, 7) : addDays(businessDateObj, 1), "yyyy-MM-dd");
+  const today = format(new Date(), "yyyy-MM-dd");
+  const viewQuery = `view=${viewMode}`;
+  const dailyHref = `?date=${dateString}&view=daily`;
+  const weeklyHref = `?date=${weekStart}&view=weekly`;
   const byCell = new Map<string, BookingRow>();
   localBookings.forEach((booking) => byCell.set(`${booking.turfNumber}:${booking.timeSlot}`, booking));
   const canReviewEdits = role === "ADMIN" || role === "SUPER_ADMIN";
@@ -45,16 +56,28 @@ export function DailyCanvas({
       <div className="glass-panel rounded-[2rem] p-5">
         <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
           <div>
-            <p className="text-sm text-zinc-500">Business Day</p>
-            <h2 className="text-2xl font-black text-white">{format(businessDateObj, "EEEE, MMMM d, yyyy")}</h2>
-            <p className="mt-1 text-sm text-zinc-400">6 AM to 6 AM · {totals.count} booked · {totals.pending} pending</p>
+            <p className="text-sm text-zinc-500">{viewMode === "weekly" ? "Selected Week" : "Business Day"}</p>
+            <h2 className="text-2xl font-black text-white">
+              {viewMode === "weekly"
+                ? `${format(weekStartObj, "MMM d")} - ${format(weekEndObj, "MMM d, yyyy")}`
+                : format(businessDateObj, "EEEE, MMMM d, yyyy")}
+            </h2>
+            <p className="mt-1 text-sm text-zinc-400">
+              {viewMode === "weekly" ? "Monday to Sunday weekly view" : `6 AM to 6 AM · ${totals.count} booked · ${totals.pending} pending`}
+            </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <button type="button" onClick={() => setViewMode("daily")} className={`rounded-full px-4 py-2 text-sm font-bold ${viewMode === "daily" ? "bg-[var(--infinity-lime)] text-black" : "border border-white/10 text-zinc-300"}`}>Daily</button>
-            <button type="button" onClick={() => setViewMode("weekly")} className={`rounded-full px-4 py-2 text-sm font-bold ${viewMode === "weekly" ? "bg-[var(--infinity-lime)] text-black" : "border border-white/10 text-zinc-300"}`}>Weekly</button>
-            <Link href={`?date=${prev}`} className="rounded-full border border-white/10 px-4 py-2 text-sm text-zinc-300 hover:text-white">Previous</Link>
-            <Link href={`?date=${format(new Date(), "yyyy-MM-dd")}`} className="rounded-full border border-white/10 px-4 py-2 text-sm text-zinc-300 hover:text-white">Today</Link>
-            <Link href={`?date=${next}`} className="rounded-full border border-white/10 px-4 py-2 text-sm text-zinc-300 hover:text-white">Next</Link>
+            <Link href={dailyHref} className={`rounded-full px-4 py-2 text-sm font-bold ${viewMode === "daily" ? "bg-[var(--infinity-lime)] text-black" : "border border-white/10 text-zinc-300"}`}>Daily</Link>
+            <Link href={weeklyHref} className={`rounded-full px-4 py-2 text-sm font-bold ${viewMode === "weekly" ? "bg-[var(--infinity-lime)] text-black" : "border border-white/10 text-zinc-300"}`}>Weekly</Link>
+            <Link href={`?date=${prev}&${viewQuery}`} className="rounded-full border border-white/10 px-4 py-2 text-sm text-zinc-300 hover:text-white">
+              {viewMode === "weekly" ? "Previous Week" : "Previous Day"}
+            </Link>
+            <Link href={`?date=${today}&${viewQuery}`} className="rounded-full border border-white/10 px-4 py-2 text-sm text-zinc-300 hover:text-white">
+              {viewMode === "weekly" ? "This Week" : "Today"}
+            </Link>
+            <Link href={`?date=${next}&${viewQuery}`} className="rounded-full border border-white/10 px-4 py-2 text-sm text-zinc-300 hover:text-white">
+              {viewMode === "weekly" ? "Next Week" : "Next Day"}
+            </Link>
             {canCreate ? (
               <Link href={`/${role === "SUPER_ADMIN" ? "superadmin" : role === "ADMIN" ? "admin" : "supervisor"}/new-booking?date=${dateString}`} className="rounded-full bg-[var(--infinity-lime)] px-4 py-2 text-sm font-bold text-black">Add Booking</Link>
             ) : null}
