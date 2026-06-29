@@ -109,6 +109,31 @@ export const DASHBOARD_BY_ROLE: Record<Role, string> = {
 
 export const ADMIN_ROLES: Role[] = ["ADMIN", "SUPER_ADMIN"];
 
+export function getAdvanceBreakdown(booking: {
+  advanceAmount: number;
+  advancePaymentMode?: string | null;
+  paymentMode?: string | null;
+  cashPortion?: number | null;
+}) {
+  const mode = booking.advancePaymentMode || booking.paymentMode || PaymentMode.CASH;
+  const advanceAmount = Number(booking.advanceAmount || 0);
+  const cashPortion = Number(booking.cashPortion || 0);
+
+  if (mode === PaymentMode.SPLIT) {
+    return {
+      cash: cashPortion,
+      dkBank: 0,
+      hgBank: Math.max(advanceAmount - cashPortion, 0),
+    };
+  }
+
+  return {
+    cash: mode === PaymentMode.CASH ? advanceAmount : 0,
+    dkBank: mode === PaymentMode.DK_BANK ? advanceAmount : 0,
+    hgBank: mode === PaymentMode.HG_BANK ? advanceAmount : 0,
+  };
+}
+
 export function formatSlotDisplay(slot: string): { from: string; to: string } {
   const [fromPart, toPart] = slot.split(" to ");
   const formatPart = (part: string) => {

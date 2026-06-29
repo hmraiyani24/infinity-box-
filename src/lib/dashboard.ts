@@ -1,5 +1,5 @@
 import { endOfDay, endOfMonth, endOfYear, startOfMonth, startOfYear } from "date-fns";
-import { BookingStatus, EditRequestStatus, PaymentMode, Role, type PaymentMode as PaymentModeType } from "@/lib/constants";
+import { BookingStatus, EditRequestStatus, Role, getAdvanceBreakdown, type PaymentMode as PaymentModeType } from "@/lib/constants";
 import { prisma } from "@/lib/prisma";
 
 export async function getCanvasData(businessDate: Date) {
@@ -20,14 +20,10 @@ export async function getCanvasData(businessDate: Date) {
       summary.total += booking.totalAmount;
       summary.count += 1;
       summary.pendingAmount += Math.max(booking.totalAmount - booking.advanceAmount, 0);
-      const paymentMode = booking.advancePaymentMode as PaymentModeType;
-      if (paymentMode === PaymentMode.SPLIT) {
-        const cashPortion = booking.cashPortion ?? 0;
-        summary.CASH += cashPortion;
-        summary.HG_BANK += Math.max(booking.advanceAmount - cashPortion, 0);
-      } else {
-        summary[paymentMode] += booking.advanceAmount;
-      }
+      const breakdown = getAdvanceBreakdown(booking);
+      summary.CASH += breakdown.cash;
+      summary.DK_BANK += breakdown.dkBank;
+      summary.HG_BANK += breakdown.hgBank;
       if (booking.status === BookingStatus.PENDING) summary.pending += 1;
       return summary;
     },
@@ -78,8 +74,10 @@ export async function getAnalytics(period = "day", date = new Date()) {
 
   const paymentTotals = bookings.reduce(
     (summary, booking) => {
-      const paymentMode = booking.advancePaymentMode as PaymentModeType;
-      summary[paymentMode] += booking.advanceAmount;
+      const breakdown = getAdvanceBreakdown(booking);
+      summary.CASH += breakdown.cash;
+      summary.DK_BANK += breakdown.dkBank;
+      summary.HG_BANK += breakdown.hgBank;
       summary.total += booking.totalAmount;
       summary.count += 1;
       return summary;

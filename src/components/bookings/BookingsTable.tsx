@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import toast from "react-hot-toast";
-import { formatSlotDisplay, TURFS, type Role } from "@/lib/constants";
+import { formatSlotDisplay, getAdvanceBreakdown, TURFS, type Role } from "@/lib/constants";
 import { currency, formatPhone, titlePaymentMode } from "@/lib/format";
 import type { BookingRow } from "@/types";
 
@@ -105,9 +105,7 @@ function BookingRowView({ booking, index, role, userId, onRemoved }: { booking: 
   const rowStatus = getRowStatus(booking);
   const slot = formatSlotDisplay(booking.timeSlot);
   const advanceMode = booking.advancePaymentMode || booking.paymentMode || "CASH";
-  const cash = advanceMode === "CASH" ? booking.advanceAmount : 0;
-  const hgBank = advanceMode === "HG_BANK" ? booking.advanceAmount : 0;
-  const dkBank = advanceMode === "DK_BANK" ? booking.advanceAmount : 0;
+  const breakdown = getAdvanceBreakdown(booking);
   const color = rowStatus === "green" ? "#22C55E" : rowStatus === "red" ? "#EF4444" : "#F59E0B";
   const hasPendingEdit = Boolean(booking.editRequests?.length);
 
@@ -143,9 +141,9 @@ function BookingRowView({ booking, index, role, userId, onRemoved }: { booking: 
       <td className="px-4 py-4 font-black text-emerald-300">{currency(booking.totalAmount)}</td>
       <td className="px-4 py-4">{currency(booking.advanceAmount)}</td>
       <td className={`px-4 py-4 ${pending > 0 ? "text-amber-300" : ""}`}>{currency(pending)}</td>
-      <td className="px-4 py-4">{currency(cash)}</td>
-      <td className="px-4 py-4">{currency(hgBank)}</td>
-      <td className="px-4 py-4">{currency(dkBank)}</td>
+      <td className="px-4 py-4">{currency(breakdown.cash)}</td>
+      <td className="px-4 py-4">{currency(breakdown.hgBank)}</td>
+      <td className="px-4 py-4">{currency(breakdown.dkBank)}</td>
       <td className="px-4 py-4 text-xs text-zinc-500">{booking.referenceName || "-"}</td>
       <td className="px-4 py-4">
         {booking.staffName}

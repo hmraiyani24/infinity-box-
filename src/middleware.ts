@@ -28,7 +28,7 @@ export async function middleware(req: NextRequest) {
 
   const token = await getToken({ req });
 
-  const isPublicRoute = path === "/set-password";
+  const isPublicRoute = path === "/set-password" || path === "/forgot-password";
 
   if (isPublicRoute) {
     return NextResponse.next();

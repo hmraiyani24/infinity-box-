@@ -1,5 +1,5 @@
 import * as XLSX from "xlsx";
-import { TIME_SLOTS } from "@/lib/constants";
+import { TIME_SLOTS, getAdvanceBreakdown } from "@/lib/constants";
 import type { BookingRow } from "@/types";
 
 export function buildExcelBuffer(bookings: BookingRow[], dates: string[], sheetTitle: string): ArrayBuffer {
@@ -63,17 +63,24 @@ export function buildExcelBuffer(bookings: BookingRow[], dates: string[], sheetT
   });
 
   const totalRows = [
-    { label: "Daily Total", filter: () => true },
-    { label: "Cash", filter: (booking: BookingRow) => booking.advancePaymentMode === "CASH" },
-    { label: "DK Bank", filter: (booking: BookingRow) => booking.advancePaymentMode === "DK_BANK" },
-    { label: "HG Bank", filter: (booking: BookingRow) => booking.advancePaymentMode === "HG_BANK" },
+    { label: "Daily Total" },
+    { label: "Cash" },
+    { label: "DK Bank" },
+    { label: "HG Bank" },
   ];
   const baseRow = 2 + TIME_SLOTS.length + 1;
-  totalRows.forEach(({ label, filter }, rowIndex) => {
+  totalRows.forEach(({ label }, rowIndex) => {
     ws[XLSX.utils.encode_cell({ r: baseRow + rowIndex, c: 0 })] = { v: label, t: "s" };
     dates.forEach((date, dateIndex) => {
-      const dayBookings = bookings.filter((booking) => booking.businessDate === date && filter(booking));
-      const sum = dayBookings.reduce((total, booking) => total + (label === "Daily Total" ? booking.totalAmount : booking.advanceAmount), 0);
+      const dayBookings = bookings.filter((booking) => booking.businessDate === date);
+      const sum = dayBookings.reduce((total, booking) => {
+        if (label === "Daily Total") return total + booking.totalAmount;
+        const breakdown = getAdvanceBreakdown(booking);
+        if (label === "Cash") return total + breakdown.cash;
+        if (label === "DK Bank") return total + breakdown.dkBank;
+        if (label === "HG Bank") return total + breakdown.hgBank;
+        return total;
+      }, 0);
       const col = 1 + dateIndex * dateSpan;
       ws[XLSX.utils.encode_cell({ r: baseRow + rowIndex, c: col })] = {
         v: sum > 0 ? `Rs ${sum.toLocaleString("en-IN")}` : "",
