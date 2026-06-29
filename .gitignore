@@ -10,3 +10,5 @@ prisma/schema.vercel.prisma
 prisma/backups/
 infinity-box/
 .DS_Store
+
+.vercel
