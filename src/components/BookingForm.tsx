@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import toast from "react-hot-toast";
-import { PAYMENT_MODES, REFERENCE_NAMES, TIME_SLOTS, TURFS, slotToTimeRange, timeRangeToSlot } from "@/lib/constants";
+import { PAYMENT_MODES, REFERENCE_NAMES, TIME_SLOTS, TURFS, getStoredSlotForRange, slotToTimeRange, timeRangeToSlot } from "@/lib/constants";
 import { titlePaymentMode } from "@/lib/format";
 import { WhatsAppMessageModal } from "@/components/modals/WhatsAppMessageModal";
 import { TimeRangePicker } from "@/components/ui/TimeRangePicker";
@@ -24,7 +24,8 @@ export function BookingForm({ defaultDate }: { defaultDate: string }) {
   const [advancePaymentMode, setAdvancePaymentMode] = useState("CASH");
   const [cashPortion, setCashPortion] = useState("0");
   const [savedBooking, setSavedBooking] = useState<BookingRow | null>(null);
-  const timeSlot = useMemo(() => timeRangeToSlot(fromTime, toTime), [fromTime, toTime]);
+  const selectedRange = useMemo(() => timeRangeToSlot(fromTime, toTime), [fromTime, toTime]);
+  const storedSlot = useMemo(() => getStoredSlotForRange(fromTime, toTime), [fromTime, toTime]);
   const availableTurfs = TURFS.map((turf) => turf.number).filter((number) => !bookedTurfs.includes(number));
   const allBooked = availableTurfs.length === 0;
   const remainingDue = Math.max(Number(totalAmount || 0) - Number(advanceAmount || 0), 0);
@@ -36,8 +37,9 @@ export function BookingForm({ defaultDate }: { defaultDate: string }) {
   useEffect(() => {
     let ignore = false;
     async function loadAvailability() {
-      if (!businessDate || !timeSlot) return;
-      const query = new URLSearchParams({ businessDate, timeSlot });
+      if (!businessDate || !storedSlot.timeSlot) return;
+      const query = new URLSearchParams({ businessDate, timeSlot: storedSlot.timeSlot });
+      if (storedSlot.timeOverride) query.set("timeOverride", storedSlot.timeOverride);
       const response = await fetch(`/api/bookings/availability?${query}`);
       if (!response.ok) return;
       const body = await response.json();
@@ -52,7 +54,7 @@ export function BookingForm({ defaultDate }: { defaultDate: string }) {
     return () => {
       ignore = true;
     };
-  }, [businessDate, selectedTurf, timeSlot]);
+  }, [businessDate, selectedTurf, storedSlot.timeOverride, storedSlot.timeSlot]);
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -63,8 +65,8 @@ export function BookingForm({ defaultDate }: { defaultDate: string }) {
     const body = {
       businessDate,
       turfNumber: selectedTurf,
-      timeSlot,
-      timeOverride: String(form.get("timeOverride") || ""),
+      timeSlot: storedSlot.timeSlot,
+      timeOverride: storedSlot.timeOverride,
       customerName: String(form.get("customerName")),
       phone: String(form.get("phone")),
       totalAmount: Number(totalAmount),
@@ -144,7 +146,7 @@ export function BookingForm({ defaultDate }: { defaultDate: string }) {
       </div>
       <label>
         <span className={labelClass}>Time Override</span>
-        <input name="timeOverride" placeholder="6:30 to 8:30" className={inputClass} />
+        <input readOnly value={storedSlot.timeOverride || selectedRange} className={`${inputClass} opacity-75`} />
       </label>
       <label>
         <span className={labelClass}>Customer Name</span>
@@ -159,7 +161,7 @@ export function BookingForm({ defaultDate }: { defaultDate: string }) {
         <input required min={1} type="number" value={totalAmount} onChange={(event) => setTotalAmount(event.target.value)} className={inputClass} />
       </label>
       <label>
-        <span className={labelClass}>Advance Received (₹)</span>
+        <span className={labelClass}>Advance Received (Rs)</span>
         <input min={0} type="number" value={advanceAmount} onChange={(event) => setAdvanceAmount(event.target.value)} className={inputClass} />
       </label>
       <div>
@@ -174,7 +176,7 @@ export function BookingForm({ defaultDate }: { defaultDate: string }) {
       </div>
       {advancePaymentMode === "CASH" ? (
         <label>
-          <span className={labelClass}>Cash in Hand (₹)</span>
+          <span className={labelClass}>Cash in Hand (Rs)</span>
           <input min={0} type="number" value={cashPortion} onChange={(event) => setCashPortion(event.target.value)} className={inputClass} />
         </label>
       ) : null}
@@ -186,7 +188,7 @@ export function BookingForm({ defaultDate }: { defaultDate: string }) {
         </select>
       </label>
       <div className="rounded-2xl border border-amber-400/20 bg-amber-400/10 px-4 py-3 text-sm text-amber-100">
-        Remaining due at ground: ₹{remainingDue.toLocaleString("en-IN")}
+        Remaining due at ground: Rs {remainingDue.toLocaleString("en-IN")}
       </div>
       <label className="md:col-span-2">
         <span className={labelClass}>Notes</span>

@@ -7,7 +7,7 @@ import { addDays, format, startOfWeek, subDays } from "date-fns";
 import { BookingActions } from "@/components/BookingActions";
 import { WeeklyGrid } from "@/components/canvas/WeeklyGrid";
 import { DirectEditModal } from "@/components/modals/DirectEditModal";
-import { formatSlotDisplay, POST_MIDNIGHT_SLOTS, TIME_SLOTS, TURFS, PAYMENT_MODE_META, STATUS_META, type Role } from "@/lib/constants";
+import { formatSlotDisplay, getStandardSlotForRange, POST_MIDNIGHT_SLOTS, TIME_SLOTS, TURFS, PAYMENT_MODE_META, STATUS_META, type Role } from "@/lib/constants";
 import { currency, formatPhone, titlePaymentMode } from "@/lib/format";
 import type { BookingRow } from "@/types";
 
@@ -47,7 +47,10 @@ export function DailyCanvas({
   const dailyHref = `?date=${dateString}&view=daily`;
   const weeklyHref = `?date=${weekStart}&view=weekly`;
   const byCell = new Map<string, BookingRow>();
-  localBookings.forEach((booking) => byCell.set(`${booking.turfNumber}:${booking.timeSlot}`, booking));
+  localBookings.forEach((booking) => {
+    const gridSlot = TIME_SLOTS.includes(booking.timeSlot as never) ? booking.timeSlot : getStandardSlotForRange(booking.timeSlot);
+    byCell.set(`${booking.turfNumber}:${gridSlot}`, booking);
+  });
   const canReviewEdits = role === "ADMIN" || role === "SUPER_ADMIN";
   const canCreate = role !== "VIEWER";
 
@@ -201,6 +204,7 @@ function BookingCard({ booking, role, userId, onDirectEdit }: { booking: Booking
   const payment = PAYMENT_MODE_META[advancePaymentMode as keyof typeof PAYMENT_MODE_META];
   const status = STATUS_META[booking.status as keyof typeof STATUS_META];
   const hasPendingEdit = Boolean(booking.editRequests?.length);
+  const displayOverride = booking.timeOverride || (TIME_SLOTS.includes(booking.timeSlot as never) ? "" : booking.timeSlot);
 
   return (
     <article className="h-full rounded-2xl border border-white/10 bg-black/35 p-4 shadow-2xl" style={{ borderLeft: `5px solid ${turf.color}` }}>
@@ -214,7 +218,7 @@ function BookingCard({ booking, role, userId, onDirectEdit }: { booking: Booking
       <CopyPhone phone={booking.phone} />
       <p className="mt-3 text-xl font-black text-[var(--infinity-lime)]">{currency(booking.totalAmount)}</p>
       <p className="mt-1 text-xs text-zinc-400">Adv {currency(booking.advanceAmount)} · <span style={{ color: payment?.color }}>{payment?.label ?? titlePaymentMode(advancePaymentMode)}</span></p>
-      <p className="mt-1 text-xs text-zinc-500">{booking.staffName}{booking.timeOverride ? ` · ${booking.timeOverride}` : ""}</p>
+      <p className="mt-1 text-xs text-zinc-500">{booking.staffName}{displayOverride ? ` · ${displayOverride}` : ""}</p>
       {booking.referenceName ? <p className="mt-1 text-[10px] text-zinc-600">ref: {booking.referenceName}</p> : null}
       {role !== "VIEWER" ? (
         <BookingActions

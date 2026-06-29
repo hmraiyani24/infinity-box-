@@ -2,7 +2,7 @@ import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 import { authOptions } from "@/lib/auth";
 import { getBusinessDate, parseBusinessDate } from "@/lib/businessDate";
-import { BookingStatus, EditRequestStatus, type PaymentMode, type Role } from "@/lib/constants";
+import { BookingStatus, EditRequestStatus, getEffectiveSlotRange, rangesOverlap, type PaymentMode, type Role } from "@/lib/constants";
 import { normalizePhone } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 
@@ -179,15 +179,16 @@ export function snapshotToBookingUpdate(snapshot: ReturnType<typeof bookingSnaps
 }
 
 export async function ensureSlotAvailable(payload: BookingPayload, ignoreBookingId?: string) {
-  const conflict = await prisma.booking.findFirst({
+  const existingBookings = await prisma.booking.findMany({
     where: {
       businessDate: payload.businessDate,
       turfNumber: payload.turfNumber,
-      timeSlot: payload.timeSlot,
       status: { not: BookingStatus.DELETED },
       ...(ignoreBookingId ? { id: { not: ignoreBookingId } } : {}),
     },
   });
+  const requestedRange = getEffectiveSlotRange(payload);
+  const conflict = existingBookings.find((booking) => rangesOverlap(requestedRange, getEffectiveSlotRange(booking)));
 
   if (conflict) throw new ResponseError("This turf and time slot is already booked");
 }

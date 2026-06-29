@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
-import { BookingStatus, Role } from "@/lib/constants";
+import { BookingStatus, Role, getEffectiveSlotRange, rangesOverlap } from "@/lib/constants";
 import { normalizePhone } from "@/lib/format";
 import { compareSecret } from "@/lib/otp";
 import { prisma } from "@/lib/prisma";
@@ -17,18 +17,20 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     if (body.turfNumber || body.timeSlot || body.businessDate) {
       const turfNumber = body.turfNumber ? Number(body.turfNumber) : before.turfNumber;
       const timeSlot = body.timeSlot ?? before.timeSlot;
+      const timeOverride = body.timeOverride !== undefined ? (body.timeOverride ? String(body.timeOverride) : null) : before.timeOverride;
       const businessDate = body.businessDate ? new Date(body.businessDate) : before.businessDate;
 
       if (!body.forceOverride) {
-        const conflict = await prisma.booking.findFirst({
+        const candidates = await prisma.booking.findMany({
           where: {
             id: { not: params.id },
             turfNumber,
-            timeSlot,
             businessDate,
             status: { not: BookingStatus.DELETED },
           },
         });
+        const requestedRange = getEffectiveSlotRange({ timeSlot, timeOverride });
+        const conflict = candidates.find((booking) => rangesOverlap(requestedRange, getEffectiveSlotRange(booking)));
 
         if (conflict) {
           return NextResponse.json({ error: "CONFLICT", conflictWith: conflict }, { status: 409 });

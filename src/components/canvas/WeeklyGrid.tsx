@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { addDays, format, startOfWeek } from "date-fns";
-import { formatSlotDisplay, TIME_SLOTS, TURFS, type Role } from "@/lib/constants";
+import { formatSlotDisplay, getStandardSlotForRange, TIME_SLOTS, TURFS, type Role } from "@/lib/constants";
 import { currency } from "@/lib/format";
 import type { BookingRow } from "@/types";
 
@@ -23,7 +23,10 @@ export function WeeklyGrid({ weekStartDate, role }: { weekStartDate: string; rol
   }, [weekDays]);
 
   const byCell = new Map<string, BookingRow>();
-  bookings.forEach((booking) => byCell.set(`${booking.businessDate.slice(0, 10)}:${booking.timeSlot}`, booking));
+  bookings.forEach((booking) => {
+    const gridSlot = TIME_SLOTS.includes(booking.timeSlot as never) ? booking.timeSlot : getStandardSlotForRange(booking.timeSlot);
+    byCell.set(`${booking.businessDate.slice(0, 10)}:${gridSlot}`, booking);
+  });
   const today = format(new Date(), "yyyy-MM-dd");
 
   return (
@@ -49,6 +52,7 @@ export function WeeklyGrid({ weekStartDate, role }: { weekStartDate: string; rol
                   const date = format(day, "yyyy-MM-dd");
                   const booking = byCell.get(`${date}:${slot}`);
                   const turf = booking ? TURFS.find((item) => item.number === booking.turfNumber) : null;
+                  const displayOverride = booking?.timeOverride || (booking && !TIME_SLOTS.includes(booking.timeSlot as never) ? booking.timeSlot : "");
                   return (
                     <div key={date} className={`min-h-[112px] border-l border-white/5 p-2 ${date === today ? "border-l-[var(--infinity-lime)]" : ""}`}>
                       {booking ? (
@@ -56,6 +60,7 @@ export function WeeklyGrid({ weekStartDate, role }: { weekStartDate: string; rol
                           <p className="truncate font-black text-white"><span style={{ color: turf?.color }}>●</span> {booking.customerName}</p>
                           <p className="mt-1 text-zinc-300">Turf {booking.turfNumber} · {currency(booking.totalAmount)}</p>
                           <p className="mt-1 truncate text-[11px] text-zinc-500">{booking.staffName}</p>
+                          {displayOverride ? <p className="mt-1 truncate text-[10px] italic text-amber-300">{displayOverride}</p> : null}
                           {role !== "VIEWER" && booking.status === "PENDING" ? <p className="mt-1 text-[10px] text-amber-200">Pending approval</p> : null}
                         </div>
                       ) : null}

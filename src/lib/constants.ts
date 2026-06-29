@@ -157,3 +157,72 @@ export function timeRangeToSlot(from: string, to: string): string {
 export function slotToTimeRange(slot: string): { from: string; to: string } {
   return formatSlotDisplay(slot);
 }
+
+export function getEffectiveSlotRange(booking: { timeSlot: string; timeOverride?: string | null }) {
+  if (booking.timeOverride) {
+    return normalizeRangeText(booking.timeOverride);
+  }
+
+  return normalizeRangeText(booking.timeSlot);
+}
+
+export function getStandardSlotForRange(slotOrRange: string) {
+  const range = slotRangeToMinutes(slotOrRange);
+  const standardSlot = TIME_SLOTS.find((slot) => {
+    const standardRange = slotRangeToMinutes(slot);
+    return range.start >= standardRange.start && range.start < standardRange.end;
+  });
+
+  return standardSlot ?? TIME_SLOTS[0];
+}
+
+export function getStoredSlotForRange(from: string, to: string) {
+  const selectedRange = `${from} to ${to}`;
+  const timeSlot = getStandardSlotForRange(selectedRange);
+  const standard = formatSlotDisplay(timeSlot);
+  const standardRange = `${standard.from} to ${standard.to}`;
+
+  return {
+    timeSlot,
+    timeOverride: normalizeRangeText(selectedRange) === normalizeRangeText(standardRange) ? "" : normalizeRangeText(selectedRange),
+  };
+}
+
+export function rangesOverlap(left: string, right: string) {
+  const leftRange = slotRangeToMinutes(left);
+  const rightRange = slotRangeToMinutes(right);
+  return leftRange.start < rightRange.end && rightRange.start < leftRange.end;
+}
+
+export function normalizeRangeText(range: string) {
+  const [fromPart, toPart] = range.split(" to ");
+  if (!fromPart || !toPart) return range.trim();
+  const normalizePart = (part: string) => {
+    const match = part.trim().match(/^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)$/i);
+    if (!match) return part.trim();
+    return `${Number(match[1])}:${match[2] ?? "00"} ${match[3].toUpperCase()}`;
+  };
+
+  return `${normalizePart(fromPart)} to ${normalizePart(toPart)}`;
+}
+
+function slotRangeToMinutes(range: string) {
+  const [fromPart, toPart] = range.split(" to ");
+  const start = timePartToBusinessMinutes(fromPart || "6 AM");
+  let end = timePartToBusinessMinutes(toPart || "7 AM");
+  if (end <= start) end += 24 * 60;
+  return { start, end };
+}
+
+function timePartToBusinessMinutes(part: string) {
+  const match = part.trim().match(/^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)$/i);
+  if (!match) return 0;
+
+  let hour = Number(match[1]) % 12;
+  const minute = Number(match[2] ?? 0);
+  const period = match[3].toUpperCase();
+  if (period === "PM") hour += 12;
+  if (hour < 6) hour += 24;
+
+  return hour * 60 + minute - 6 * 60;
+}
