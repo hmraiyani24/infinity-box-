@@ -6,22 +6,22 @@ import { hashSecret } from "@/lib/otp";
 import { prisma } from "@/lib/prisma";
 
 type SetupBody = {
-  superAdminPassword?: string;
-  adminPassword?: string;
   adminPin?: string;
-  supervisorPasswords?: Record<string, string>;
+  accountPasswords?: Record<string, string>;
 };
 
 const setupUsers = [
-  { username: "superadmin", role: Role.SUPER_ADMIN, displayName: "Super Admin" },
-  { username: "admin", role: Role.ADMIN, displayName: "Admin" },
+  { username: "hiren", role: Role.SUPER_ADMIN, displayName: "Hiren" },
+  { username: "nikunj", role: Role.SUPER_ADMIN, displayName: "Nikunj" },
+  { username: "dk", role: Role.ADMIN, displayName: "DK" },
+  { username: "hardik", role: Role.ADMIN, displayName: "Hardik" },
   { username: "rakesh", role: Role.SUPERVISOR, displayName: "Rakesh" },
-  { username: "hiren", role: Role.SUPERVISOR, displayName: "Hiren" },
-  { username: "nikunj", role: Role.SUPERVISOR, displayName: "Nikunj" },
-  { username: "hardik", role: Role.SUPERVISOR, displayName: "Hardik" },
+  { username: "supervisor2", role: Role.SUPERVISOR, displayName: "Supervisor 2" },
+  { username: "nitin", role: Role.VIEWER, displayName: "Nitin" },
+  { username: "viewer2", role: Role.VIEWER, displayName: "Viewer 2" },
 ];
 
-const supervisorUsernames = setupUsers.filter((user) => user.role === Role.SUPERVISOR).map((user) => user.username);
+const accountUsernames = setupUsers.map((user) => user.username);
 
 export async function GET() {
   try {
@@ -59,63 +59,20 @@ export async function POST(req: Request) {
     }
 
     await prisma.$transaction(async (tx) => {
-      await tx.user.upsert({
-        where: { username: "superadmin" },
-        create: {
-          username: "superadmin",
-          role: Role.SUPER_ADMIN,
-          displayName: "Super Admin",
-          passwordHash: await hashSecret(body.superAdminPassword!),
-          isFirstLogin: false,
-          otpUsed: true,
-        },
-        update: {
-          passwordHash: await hashSecret(body.superAdminPassword!),
-          role: Role.SUPER_ADMIN,
-          displayName: "Super Admin",
-          isFirstLogin: false,
-          otpHash: null,
-          otpExpiresAt: null,
-          otpUsed: true,
-          isActive: true,
-        },
-      });
-
-      await tx.user.upsert({
-        where: { username: "admin" },
-        create: {
-          username: "admin",
-          role: Role.ADMIN,
-          displayName: "Admin",
-          passwordHash: await hashSecret(body.adminPassword!),
-          isFirstLogin: false,
-          otpUsed: true,
-        },
-        update: {
-          passwordHash: await hashSecret(body.adminPassword!),
-          role: Role.ADMIN,
-          displayName: "Admin",
-          isFirstLogin: false,
-          otpHash: null,
-          otpExpiresAt: null,
-          otpUsed: true,
-          isActive: true,
-        },
-      });
-
-      for (const user of setupUsers.filter((item) => item.role === Role.SUPERVISOR)) {
+      for (const user of setupUsers) {
+        const passwordHash = await hashSecret(body.accountPasswords![user.username]);
         await tx.user.upsert({
           where: { username: user.username },
           create: {
             username: user.username,
             role: user.role,
             displayName: user.displayName,
-            passwordHash: await hashSecret(body.supervisorPasswords![user.username]),
+            passwordHash,
             isFirstLogin: false,
             otpUsed: true,
           },
           update: {
-            passwordHash: await hashSecret(body.supervisorPasswords![user.username]),
+            passwordHash,
             role: user.role,
             displayName: user.displayName,
             isFirstLogin: false,
@@ -145,13 +102,11 @@ export async function POST(req: Request) {
 
 function validateSetupBody(body: SetupBody) {
   const errors: Record<string, string> = {};
-  if (!isValidPassword(body.superAdminPassword)) errors.superAdminPassword = "Super Admin password must be at least 8 characters.";
-  if (!isValidPassword(body.adminPassword)) errors.adminPassword = "Admin password must be at least 8 characters.";
   if (!/^\d{4}$/.test(body.adminPin || "")) errors.adminPin = "Admin PIN must be exactly 4 digits.";
 
-  for (const username of supervisorUsernames) {
-    if (!isValidPassword(body.supervisorPasswords?.[username])) {
-      errors[`supervisorPasswords.${username}`] = `${username} password must be at least 8 characters.`;
+  for (const username of accountUsernames) {
+    if (!isValidPassword(body.accountPasswords?.[username])) {
+      errors[`accountPasswords.${username}`] = `${username} password must be at least 8 characters.`;
     }
   }
 
@@ -166,6 +121,9 @@ function setupErrorMessage(error: unknown) {
   const message = error instanceof Error ? error.message : String(error);
   if (message.includes("Environment variable not found: DATABASE_URL")) {
     return "DATABASE_URL is missing in Vercel Environment Variables.";
+  }
+  if (message.includes("URL must start with the protocol")) {
+    return "DATABASE_URL must be a PostgreSQL connection string in Vercel, starting with postgresql:// or postgres://.";
   }
   if (message.includes("no such table")) {
     return "Database tables are missing. Run Prisma migrations or db push for the production database.";

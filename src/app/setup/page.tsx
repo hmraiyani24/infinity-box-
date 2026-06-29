@@ -4,21 +4,25 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import toast from "react-hot-toast";
 
-type SupervisorKey = "rakesh" | "hiren" | "nikunj" | "hardik";
+type AccountKey = "hiren" | "nikunj" | "dk" | "hardik" | "rakesh" | "supervisor2" | "nitin" | "viewer2";
 
-const supervisors: Array<{ username: SupervisorKey; name: string }> = [
-  { username: "rakesh", name: "Rakesh" },
-  { username: "hiren", name: "Hiren" },
-  { username: "nikunj", name: "Nikunj" },
-  { username: "hardik", name: "Hardik" },
+const accounts: Array<{ username: AccountKey; name: string; role: string; icon: string }> = [
+  { username: "hiren", name: "Hiren", role: "Super Admin", icon: "⭐" },
+  { username: "nikunj", name: "Nikunj", role: "Super Admin", icon: "⭐" },
+  { username: "dk", name: "DK", role: "Admin", icon: "🔐" },
+  { username: "hardik", name: "Hardik", role: "Admin", icon: "🔐" },
+  { username: "rakesh", name: "Rakesh", role: "Supervisor", icon: "👤" },
+  { username: "supervisor2", name: "Supervisor 2", role: "Supervisor", icon: "👤" },
+  { username: "nitin", name: "Nitin", role: "Viewer", icon: "👁️" },
+  { username: "viewer2", name: "Viewer 2", role: "Viewer", icon: "👁️" },
 ];
 
-const initialSupervisorPasswords = supervisors.reduce(
-  (values, supervisor) => ({
+const initialAccountPasswords = accounts.reduce(
+  (values, account) => ({
     ...values,
-    [supervisor.username]: { password: "", confirm: "", show: false },
+    [account.username]: { password: "", confirm: "", show: false },
   }),
-  {} as Record<SupervisorKey, { password: string; confirm: string; show: boolean }>,
+  {} as Record<AccountKey, { password: string; confirm: string; show: boolean }>,
 );
 
 export default function SetupPage() {
@@ -27,27 +31,19 @@ export default function SetupPage() {
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [credentials, setCredentials] = useState({
-    superAdminPassword: "",
-    superAdminConfirm: "",
-    superAdminShow: false,
-    adminPassword: "",
-    adminConfirm: "",
-    adminShow: false,
     adminPin: "",
     adminPinConfirm: "",
   });
-  const [supervisorPasswords, setSupervisorPasswords] = useState(initialSupervisorPasswords);
+  const [accountPasswords, setAccountPasswords] = useState(initialAccountPasswords);
 
   const payload = useMemo(
     () => ({
-      superAdminPassword: credentials.superAdminPassword,
-      adminPassword: credentials.adminPassword,
       adminPin: credentials.adminPin,
-      supervisorPasswords: Object.fromEntries(
-        supervisors.map((supervisor) => [supervisor.username, supervisorPasswords[supervisor.username].password]),
+      accountPasswords: Object.fromEntries(
+        accounts.map((account) => [account.username, accountPasswords[account.username].password]),
       ),
     }),
-    [credentials.adminPassword, credentials.adminPin, credentials.superAdminPassword, supervisorPasswords],
+    [credentials.adminPin, accountPasswords],
   );
 
   function strength(password: string) {
@@ -58,25 +54,21 @@ export default function SetupPage() {
     return score <= 1 ? "Weak" : score === 2 ? "Medium" : "Strong";
   }
 
-  function validateAdminStep() {
+  function validateAccountStep() {
     const nextErrors: Record<string, string> = {};
-    if (credentials.superAdminPassword.length < 8) nextErrors.superAdminPassword = "Super Admin password must be at least 8 characters.";
-    if (credentials.superAdminPassword !== credentials.superAdminConfirm) nextErrors.superAdminConfirm = "Super Admin passwords do not match.";
-    if (credentials.adminPassword.length < 8) nextErrors.adminPassword = "Admin password must be at least 8 characters.";
-    if (credentials.adminPassword !== credentials.adminConfirm) nextErrors.adminConfirm = "Admin passwords do not match.";
-    if (!/^\d{4}$/.test(credentials.adminPin)) nextErrors.adminPin = "PIN must be exactly 4 digits.";
-    if (credentials.adminPin !== credentials.adminPinConfirm) nextErrors.adminPinConfirm = "PIN confirmation does not match.";
+    for (const account of accounts) {
+      const values = accountPasswords[account.username];
+      if (values.password.length < 8) nextErrors[`${account.username}Password`] = `${account.name}'s password must be at least 8 characters.`;
+      if (values.password !== values.confirm) nextErrors[`${account.username}Confirm`] = `${account.name}'s passwords do not match.`;
+    }
     setErrors(nextErrors);
     return Object.keys(nextErrors).length === 0;
   }
 
-  function validateSupervisorStep() {
+  function validatePinStep() {
     const nextErrors: Record<string, string> = {};
-    for (const supervisor of supervisors) {
-      const values = supervisorPasswords[supervisor.username];
-      if (values.password.length < 8) nextErrors[`${supervisor.username}Password`] = `${supervisor.name}'s password must be at least 8 characters.`;
-      if (values.password !== values.confirm) nextErrors[`${supervisor.username}Confirm`] = `${supervisor.name}'s passwords do not match.`;
-    }
+    if (!/^\d{4}$/.test(credentials.adminPin)) nextErrors.adminPin = "PIN must be exactly 4 digits.";
+    if (credentials.adminPin !== credentials.adminPinConfirm) nextErrors.adminPinConfirm = "PIN confirmation does not match.";
     setErrors(nextErrors);
     return Object.keys(nextErrors).length === 0;
   }
@@ -135,73 +127,50 @@ export default function SetupPage() {
 
         {!completed && step === 2 ? (
           <section className="glass-panel rounded-[2rem] p-6 md:p-8">
-            <Header title="Step 1 of 3 — Admin Passwords" text="These are the two most powerful accounts. Keep these passwords safe — write them down somewhere secure." />
-            <div className="mt-8 grid gap-5 lg:grid-cols-2">
-              <PasswordCard
-                title="⭐ Super Admin Account"
-                username="superadmin"
-                password={credentials.superAdminPassword}
-                confirm={credentials.superAdminConfirm}
-                show={credentials.superAdminShow}
-                strength={strength(credentials.superAdminPassword)}
-                errors={{ password: errors.superAdminPassword, confirm: errors.superAdminConfirm }}
-                onChange={(field, value) => setCredentials((prev) => ({ ...prev, [field === "password" ? "superAdminPassword" : "superAdminConfirm"]: value }))}
-                onToggleShow={() => setCredentials((prev) => ({ ...prev, superAdminShow: !prev.superAdminShow }))}
-              />
-              <PasswordCard
-                title="🔐 Admin Account"
-                username="admin"
-                password={credentials.adminPassword}
-                confirm={credentials.adminConfirm}
-                show={credentials.adminShow}
-                strength={strength(credentials.adminPassword)}
-                errors={{ password: errors.adminPassword, confirm: errors.adminConfirm }}
-                onChange={(field, value) => setCredentials((prev) => ({ ...prev, [field === "password" ? "adminPassword" : "adminConfirm"]: value }))}
-                onToggleShow={() => setCredentials((prev) => ({ ...prev, adminShow: !prev.adminShow }))}
-              />
-            </div>
-            <div className="mt-5 rounded-[2rem] border border-white/10 bg-black/30 p-5">
-              <h2 className="text-lg font-black">🔑 Admin Security PIN</h2>
-              <p className="mt-2 text-sm text-zinc-400">This PIN is required when deleting a booking or clearing a supervisor&apos;s cash. It is separate from the Admin password.</p>
-              <PinInput label="PIN" value={credentials.adminPin} onChange={(value) => setCredentials((prev) => ({ ...prev, adminPin: value }))} error={errors.adminPin} />
-              <PinInput label="Confirm PIN" value={credentials.adminPinConfirm} onChange={(value) => setCredentials((prev) => ({ ...prev, adminPinConfirm: value }))} error={errors.adminPinConfirm} />
-            </div>
-            <Footer onNext={() => validateAdminStep() && setStep(3)} />
-          </section>
-        ) : null}
-
-        {!completed && step === 3 ? (
-          <section className="glass-panel rounded-[2rem] p-6 md:p-8">
-            <Header title="Step 2 of 3 — Supervisor Passwords" text="Each supervisor gets their own login. Share each password only with that person." />
+            <Header title="Step 1 of 3 — Account Passwords" text="Set passwords for every v8 account: Super Admins, Admins, Supervisors, and Viewers." />
             <div className="mt-8 grid gap-5 md:grid-cols-2">
-              {supervisors.map((supervisor) => {
-                const values = supervisorPasswords[supervisor.username];
+              {accounts.map((account) => {
+                const values = accountPasswords[account.username];
                 return (
                   <PasswordCard
-                    key={supervisor.username}
-                    title={`👤 ${supervisor.name}`}
-                    username={supervisor.username}
+                    key={account.username}
+                    title={`${account.icon} ${account.name} · ${account.role}`}
+                    username={account.username}
                     password={values.password}
                     confirm={values.confirm}
                     show={values.show}
-                    errors={{ password: errors[`${supervisor.username}Password`], confirm: errors[`${supervisor.username}Confirm`] }}
+                    strength={strength(values.password)}
+                    errors={{ password: errors[`${account.username}Password`], confirm: errors[`${account.username}Confirm`] }}
                     onChange={(field, value) =>
-                      setSupervisorPasswords((prev) => ({
+                      setAccountPasswords((prev) => ({
                         ...prev,
-                        [supervisor.username]: { ...prev[supervisor.username], [field]: value },
+                        [account.username]: { ...prev[account.username], [field]: value },
                       }))
                     }
                     onToggleShow={() =>
-                      setSupervisorPasswords((prev) => ({
+                      setAccountPasswords((prev) => ({
                         ...prev,
-                        [supervisor.username]: { ...prev[supervisor.username], show: !prev[supervisor.username].show },
+                        [account.username]: { ...prev[account.username], show: !prev[account.username].show },
                       }))
                     }
                   />
                 );
               })}
             </div>
-            <Footer onBack={() => setStep(2)} onNext={() => validateSupervisorStep() && setStep(4)} />
+            <Footer onNext={() => validateAccountStep() && setStep(3)} />
+          </section>
+        ) : null}
+
+        {!completed && step === 3 ? (
+          <section className="glass-panel rounded-[2rem] p-6 md:p-8">
+            <Header title="Step 2 of 3 — Admin Security PIN" text="This PIN is required when deleting bookings and clearing supervisor cash." />
+            <div className="mt-8 rounded-[2rem] border border-white/10 bg-black/30 p-5">
+              <h2 className="text-lg font-black">🔑 Admin Security PIN</h2>
+              <p className="mt-2 text-sm text-zinc-400">Use exactly four digits. Keep it separate from account passwords.</p>
+              <PinInput label="PIN" value={credentials.adminPin} onChange={(value) => setCredentials((prev) => ({ ...prev, adminPin: value }))} error={errors.adminPin} />
+              <PinInput label="Confirm PIN" value={credentials.adminPinConfirm} onChange={(value) => setCredentials((prev) => ({ ...prev, adminPinConfirm: value }))} error={errors.adminPinConfirm} />
+            </div>
+            <Footer onBack={() => setStep(2)} onNext={() => validatePinStep() && setStep(4)} />
           </section>
         ) : null}
 
@@ -210,10 +179,8 @@ export default function SetupPage() {
             <Header title="Step 3 of 3 — Confirm Setup" text="Review your choices then click Activate. You can change any of these later from Settings." />
             <div className="mt-8 overflow-hidden rounded-[2rem] border border-white/10">
               {[
-                ["⭐ Super Admin", "superadmin", credentials.superAdminPassword],
-                ["🔐 Admin", "admin", credentials.adminPassword],
+                ...accounts.map((account) => [`${account.icon} ${account.name} · ${account.role}`, account.username, accountPasswords[account.username].password]),
                 ["🔑 Admin PIN", "—", credentials.adminPin],
-                ...supervisors.map((supervisor) => [`👤 ${supervisor.name}`, supervisor.username, supervisorPasswords[supervisor.username].password]),
               ].map(([account, username, password]) => (
                 <div key={`${account}-${username}`} className="grid grid-cols-3 gap-3 border-b border-white/10 px-4 py-3 text-sm last:border-b-0">
                   <span className="font-semibold text-white">{account}</span>
