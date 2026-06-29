@@ -92,7 +92,7 @@ export function LoginForm() {
           required
           autoComplete="username"
           className="focus-ring w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-white placeholder:text-zinc-600"
-          placeholder="superadmin"
+          placeholder="hiren"
         />
       </div>
 
@@ -153,6 +153,13 @@ export function LoginForm() {
         className="block w-full text-center text-sm text-zinc-400 transition hover:text-white"
       >
         {mode === "otp" ? "Have a password? Sign in" : "First time? Use your login code"}
+      </a>
+      <a
+        href="/forgot-password"
+        onClick={() => setError("")}
+        className="block w-full text-center text-sm font-semibold text-[var(--infinity-lime)] transition hover:brightness-110"
+      >
+        Forgot password? Reset once
       </a>
     </form>
   );
