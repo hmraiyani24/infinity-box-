@@ -2,10 +2,11 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { addDays, format, subDays } from "date-fns";
+import { addDays, format, startOfWeek, subDays } from "date-fns";
 import { BookingActions } from "@/components/BookingActions";
+import { WeeklyGrid } from "@/components/canvas/WeeklyGrid";
 import { DirectEditModal } from "@/components/modals/DirectEditModal";
-import { POST_MIDNIGHT_SLOTS, TIME_SLOTS, TURFS, PAYMENT_MODE_META, STATUS_META, type Role } from "@/lib/constants";
+import { formatSlotDisplay, POST_MIDNIGHT_SLOTS, TIME_SLOTS, TURFS, PAYMENT_MODE_META, STATUS_META, type Role } from "@/lib/constants";
 import { currency, formatPhone, titlePaymentMode } from "@/lib/format";
 import type { BookingRow } from "@/types";
 
@@ -21,20 +22,23 @@ export function DailyCanvas({
   userId: string;
   businessDate: string;
   bookings: BookingRow[];
-  totals: { total: number; count: number; pending: number; CASH: number; DK_BANK: number; HG_BANK: number; SPLIT: number };
+  totals: { total: number; count: number; pending: number; pendingAmount: number; CASH: number; DK_BANK: number; HG_BANK: number; SPLIT: number };
   pendingEditRequests: number;
 }) {
   const [localBookings, setLocalBookings] = useState(bookings);
   const [directEditBooking, setDirectEditBooking] = useState<BookingRow | null>(null);
   const [activeTurf, setActiveTurf] = useState(1);
+  const [viewMode, setViewMode] = useState<"daily" | "weekly">("daily");
   useEffect(() => setLocalBookings(bookings), [bookings]);
   const businessDateObj = useMemo(() => new Date(`${businessDate}T00:00:00`), [businessDate]);
   const dateString = format(businessDateObj, "yyyy-MM-dd");
+  const weekStart = format(startOfWeek(businessDateObj, { weekStartsOn: 1 }), "yyyy-MM-dd");
   const prev = format(subDays(businessDateObj, 1), "yyyy-MM-dd");
   const next = format(addDays(businessDateObj, 1), "yyyy-MM-dd");
   const byCell = new Map<string, BookingRow>();
   localBookings.forEach((booking) => byCell.set(`${booking.turfNumber}:${booking.timeSlot}`, booking));
   const canReviewEdits = role === "ADMIN" || role === "SUPER_ADMIN";
+  const canCreate = role !== "VIEWER";
 
   return (
     <section className="space-y-5">
@@ -46,19 +50,23 @@ export function DailyCanvas({
             <p className="mt-1 text-sm text-zinc-400">6 AM to 6 AM · {totals.count} booked · {totals.pending} pending</p>
           </div>
           <div className="flex flex-wrap gap-2">
+            <button type="button" onClick={() => setViewMode("daily")} className={`rounded-full px-4 py-2 text-sm font-bold ${viewMode === "daily" ? "bg-[var(--infinity-lime)] text-black" : "border border-white/10 text-zinc-300"}`}>Daily</button>
+            <button type="button" onClick={() => setViewMode("weekly")} className={`rounded-full px-4 py-2 text-sm font-bold ${viewMode === "weekly" ? "bg-[var(--infinity-lime)] text-black" : "border border-white/10 text-zinc-300"}`}>Weekly</button>
             <Link href={`?date=${prev}`} className="rounded-full border border-white/10 px-4 py-2 text-sm text-zinc-300 hover:text-white">Previous</Link>
             <Link href={`?date=${format(new Date(), "yyyy-MM-dd")}`} className="rounded-full border border-white/10 px-4 py-2 text-sm text-zinc-300 hover:text-white">Today</Link>
             <Link href={`?date=${next}`} className="rounded-full border border-white/10 px-4 py-2 text-sm text-zinc-300 hover:text-white">Next</Link>
-            <Link href={`/${role === "SUPER_ADMIN" ? "superadmin" : role === "ADMIN" ? "admin" : "supervisor"}/new-booking?date=${dateString}`} className="rounded-full bg-[var(--infinity-lime)] px-4 py-2 text-sm font-bold text-black">Add Booking</Link>
+            {canCreate ? (
+              <Link href={`/${role === "SUPER_ADMIN" ? "superadmin" : role === "ADMIN" ? "admin" : "supervisor"}/new-booking?date=${dateString}`} className="rounded-full bg-[var(--infinity-lime)] px-4 py-2 text-sm font-bold text-black">Add Booking</Link>
+            ) : null}
           </div>
         </div>
-        {role !== "SUPERVISOR" ? (
+        {role !== "SUPERVISOR" && role !== "VIEWER" ? (
           <div className="mt-5 grid gap-3 md:grid-cols-5">
             <Stat label="Total" value={currency(totals.total)} />
             <Stat label="Cash" value={currency(totals.CASH)} />
             <Stat label="DK Bank" value={currency(totals.DK_BANK)} />
             <Stat label="HG Bank" value={currency(totals.HG_BANK)} />
-            <Stat label="Split" value={currency(totals.SPLIT)} />
+            <Stat label="Pending" value={currency(totals.pendingAmount)} />
           </div>
         ) : null}
         {canReviewEdits && pendingEditRequests > 0 ? (
@@ -71,6 +79,10 @@ export function DailyCanvas({
         ) : null}
       </div>
 
+      {viewMode === "weekly" ? <WeeklyGrid weekStartDate={weekStart} role={role} /> : null}
+
+      {viewMode === "daily" ? (
+      <>
       <div className="hidden overflow-hidden rounded-[2rem] border border-white/10 bg-[var(--infinity-surface)] lg:block">
         <div className="overflow-x-auto">
           <div className="min-w-[980px]">
@@ -83,7 +95,7 @@ export function DailyCanvas({
             {TIME_SLOTS.map((slot) => (
               <div key={slot} className={`grid grid-cols-[150px_repeat(4,minmax(190px,1fr))] border-b border-white/5 last:border-b-0 ${POST_MIDNIGHT_SLOTS.includes(slot as never) ? "bg-amber-400/[0.04]" : ""}`}>
                 <div className={`bg-black/20 p-4 text-sm font-semibold text-zinc-300 ${POST_MIDNIGHT_SLOTS.includes(slot as never) ? "border-l-4 border-amber-400 text-amber-100" : ""}`}>
-                  {slot}
+                  <SlotLabel slot={slot} />
                   {slot.startsWith("12 AM") || slot.startsWith("1 AM") ? <p className="mt-1 text-xs text-zinc-600">past midnight</p> : null}
                 </div>
                 {TURFS.map((turf) => {
@@ -92,14 +104,14 @@ export function DailyCanvas({
                     <div key={turf.number} className="min-h-[132px] border-l border-white/5 p-3">
                       {booking ? (
                         <BookingCard booking={booking} role={role} userId={userId} onDirectEdit={() => setDirectEditBooking(booking)} />
-                      ) : (
+                      ) : canCreate ? (
                         <Link
                           href={`/${role === "SUPER_ADMIN" ? "superadmin" : role === "ADMIN" ? "admin" : "supervisor"}/new-booking?date=${dateString}&turf=${turf.number}&slot=${encodeURIComponent(slot)}`}
                           className="grid h-full min-h-[108px] place-items-center rounded-2xl border border-dashed border-white/10 text-2xl text-zinc-600 transition hover:border-[var(--infinity-lime)] hover:text-[var(--infinity-lime)]"
                         >
                           +
                         </Link>
-                      )}
+                      ) : null}
                     </div>
                   );
                 })}
@@ -127,23 +139,25 @@ export function DailyCanvas({
             return (
               <div key={slot} className={`grid grid-cols-[110px_1fr] gap-3 border-b border-white/5 p-3 last:border-b-0 ${POST_MIDNIGHT_SLOTS.includes(slot as never) ? "bg-amber-400/[0.05]" : ""}`}>
                 <div className={`text-xs font-semibold text-zinc-300 ${POST_MIDNIGHT_SLOTS.includes(slot as never) ? "border-l-2 border-amber-400 pl-2 text-amber-100" : ""}`}>
-                  {slot}
+                  <SlotLabel slot={slot} />
                 </div>
                 {booking ? (
                   <BookingCard booking={booking} role={role} userId={userId} onDirectEdit={() => setDirectEditBooking(booking)} />
-                ) : (
+                ) : canCreate ? (
                   <Link
                     href={`/${role === "SUPER_ADMIN" ? "superadmin" : role === "ADMIN" ? "admin" : "supervisor"}/new-booking?date=${dateString}&turf=${activeTurf}&slot=${encodeURIComponent(slot)}`}
                     className="grid min-h-[70px] place-items-center rounded-2xl border border-dashed border-white/10 text-2xl text-zinc-600"
                   >
                     +
                   </Link>
-                )}
+                ) : null}
               </div>
             );
           })}
         </div>
       </div>
+      </>
+      ) : null}
       {directEditBooking ? (
         <DirectEditModal
           booking={directEditBooking}
@@ -160,7 +174,8 @@ export function DailyCanvas({
 
 function BookingCard({ booking, role, userId, onDirectEdit }: { booking: BookingRow; role: Role; userId: string; onDirectEdit: () => void }) {
   const turf = TURFS.find((item) => item.number === booking.turfNumber) ?? TURFS[0];
-  const payment = PAYMENT_MODE_META[booking.paymentMode as keyof typeof PAYMENT_MODE_META];
+  const advancePaymentMode = booking.advancePaymentMode || booking.paymentMode || "CASH";
+  const payment = PAYMENT_MODE_META[advancePaymentMode as keyof typeof PAYMENT_MODE_META];
   const status = STATUS_META[booking.status as keyof typeof STATUS_META];
   const hasPendingEdit = Boolean(booking.editRequests?.length);
 
@@ -173,19 +188,51 @@ function BookingCard({ booking, role, userId, onDirectEdit }: { booking: Booking
         {hasPendingEdit ? <span className="rounded-full bg-amber-400/15 px-2 py-1 text-[10px] font-bold text-amber-200">Edit Pending</span> : null}
       </div>
       <h3 className="truncate text-base font-black text-white">{booking.customerName}</h3>
-      <p className="mt-1 font-mono text-xs text-zinc-500">{formatPhone(booking.phone)}</p>
+      <CopyPhone phone={booking.phone} />
       <p className="mt-3 text-xl font-black text-[var(--infinity-lime)]">{currency(booking.totalAmount)}</p>
-      <p className="mt-1 text-xs text-zinc-400">Adv {currency(booking.advanceAmount)} · <span style={{ color: payment?.color }}>{payment?.label ?? titlePaymentMode(booking.paymentMode)}</span></p>
+      <p className="mt-1 text-xs text-zinc-400">Adv {currency(booking.advanceAmount)} · <span style={{ color: payment?.color }}>{payment?.label ?? titlePaymentMode(advancePaymentMode)}</span></p>
       <p className="mt-1 text-xs text-zinc-500">{booking.staffName}{booking.timeOverride ? ` · ${booking.timeOverride}` : ""}</p>
-      <BookingActions
-        bookingId={booking.id}
-        role={role}
-        ownsBooking={booking.createdById === userId}
-        hasPendingEdit={hasPendingEdit}
-        bookingStatus={booking.status}
-        onDirectEdit={onDirectEdit}
-      />
+      {booking.referenceName ? <p className="mt-1 text-[10px] text-zinc-600">ref: {booking.referenceName}</p> : null}
+      {role !== "VIEWER" ? (
+        <BookingActions
+          bookingId={booking.id}
+          role={role}
+          ownsBooking={booking.createdById === userId}
+          hasPendingEdit={hasPendingEdit}
+          bookingStatus={booking.status}
+          onDirectEdit={onDirectEdit}
+        />
+      ) : null}
     </article>
+  );
+}
+
+function SlotLabel({ slot }: { slot: string }) {
+  const display = formatSlotDisplay(slot);
+  return (
+    <div>
+      <p>From: {display.from}</p>
+      <p className="text-xs text-zinc-500">To: {display.to}</p>
+    </div>
+  );
+}
+
+function CopyPhone({ phone }: { phone: string }) {
+  const [copied, setCopied] = useState(false);
+
+  async function handleCopy() {
+    await navigator.clipboard.writeText(phone);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
+
+  return (
+    <button type="button" onClick={handleCopy} className="mt-1 cursor-pointer select-none text-left font-mono text-xs text-zinc-500">
+      {formatPhone(phone)}
+      <span className="ml-1 text-[11px]" style={{ color: copied ? "#22C55E" : "#71717a" }}>
+        {copied ? "Copied" : "Copy"}
+      </span>
+    </button>
   );
 }
 

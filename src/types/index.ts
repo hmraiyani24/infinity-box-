@@ -1,6 +1,6 @@
 import type { TIME_SLOTS } from "@/lib/constants";
 
-export type Role = "SUPERVISOR" | "ADMIN" | "SUPER_ADMIN";
+export type Role = "VIEWER" | "SUPERVISOR" | "ADMIN" | "SUPER_ADMIN";
 export type PaymentMode = "CASH" | "DK_BANK" | "HG_BANK" | "SPLIT";
 export type BookingStatus = "PENDING" | "CONFIRMED" | "DELETED";
 export type EditRequestStatus = "PENDING_APPROVAL" | "APPROVED" | "REJECTED";
@@ -16,8 +16,11 @@ export interface BookingRow {
   phone: string;
   totalAmount: number;
   advanceAmount: number;
-  paymentMode: string;
+  advancePaymentMode: string;
+  paymentMode?: string;
+  cashPortion: number | null;
   cashAmount: number;
+  referenceName: string | null;
   staffName: string;
   notes: string | null;
   status: string;
@@ -25,7 +28,9 @@ export interface BookingRow {
   createdAt: string;
   verifiedAt: string | null;
   verifiedBy?: { displayName: string } | null;
-  createdBy?: { displayName: string } | null;
+  createdBy?: { displayName: string; role?: string } | null;
+  lastEditedByName?: string | null;
+  lastEditedAt?: string | null;
   editRequests?: { id: string }[];
 }
 
@@ -38,6 +43,8 @@ export interface NewBookingPayload {
   phone: string;
   totalAmount: number;
   advanceAmount: number;
-  paymentMode: PaymentMode;
+  advancePaymentMode: PaymentMode;
+  cashPortion?: number | null;
+  referenceName?: string | null;
   notes?: string;
 }

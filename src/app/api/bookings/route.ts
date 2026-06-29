@@ -2,7 +2,7 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 import { parseBusinessDate } from "@/lib/businessDate";
-import { bookingSnapshot, ensureSlotAvailable, jsonError, parseBookingPayload, requireUser } from "@/lib/server";
+import { bookingSnapshot, ensureSlotAvailable, jsonError, parseBookingPayload, requireUser, ResponseError } from "@/lib/server";
 import { BookingStatus, type BookingStatus as BookingStatusType } from "@/lib/constants";
 import { prisma } from "@/lib/prisma";
 
@@ -11,18 +11,23 @@ export async function GET(req: NextRequest) {
     const user = await requireUser();
     const params = req.nextUrl.searchParams;
     const businessDate = parseBusinessDate(params.get("businessDate"));
+    const from = params.get("from");
+    const to = params.get("to");
     const supervisorId = params.get("supervisorId");
-    const status = params.get("status") as BookingStatusType | null;
+    const createdById = params.get("createdById");
+    const status = params.get("status");
     const turf = Number(params.get("turfNumber") || params.get("turf") || 0);
     const timeSlot = params.get("timeSlot");
+    const statusWhere: BookingStatusType | { not: BookingStatusType } =
+      status && status !== "all" ? (status as BookingStatusType) : { not: BookingStatus.DELETED };
 
     const bookings = await prisma.booking.findMany({
       where: {
-        businessDate,
-        status: status || { not: BookingStatus.DELETED },
+        businessDate: from && to ? { gte: parseBusinessDate(from), lte: parseBusinessDate(to) } : businessDate,
+        status: statusWhere,
         ...(turf ? { turfNumber: turf } : {}),
         ...(timeSlot ? { timeSlot } : {}),
-        ...(supervisorId ? { createdById: supervisorId } : {}),
+        ...(supervisorId || createdById ? { createdById: supervisorId || createdById || undefined } : {}),
         ...(user.role === "SUPERVISOR" && supervisorId ? { createdById: user.id } : {}),
       },
       include: {
@@ -41,6 +46,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const user = await requireUser();
+    if (user.role === "VIEWER") throw new ResponseError("Viewer access is read-only", 403);
     const payload = parseBookingPayload(await req.json());
     await ensureSlotAvailable(payload);
 

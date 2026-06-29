@@ -8,6 +8,9 @@ type NavItem = {
 };
 
 const navByRole: Record<Role, NavItem[]> = {
+  VIEWER: [
+    { href: "/viewer/canvas", label: "Canvas" },
+  ],
   SUPERVISOR: [
     { href: "/supervisor/canvas", label: "Canvas" },
     { href: "/supervisor/new-booking", label: "New Booking" },

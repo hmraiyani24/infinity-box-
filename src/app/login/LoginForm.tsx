@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import toast from "react-hot-toast";
 
 const dashboardByRole: Record<string, string> = {
+  VIEWER: "/viewer/canvas",
   SUPERVISOR: "/supervisor/canvas",
   ADMIN: "/admin/canvas",
   SUPER_ADMIN: "/superadmin/canvas",

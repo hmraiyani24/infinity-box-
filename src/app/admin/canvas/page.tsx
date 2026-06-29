@@ -30,6 +30,7 @@ function serializeCanvasData(data: Awaited<ReturnType<typeof getCanvasData>>) {
       businessDate: booking.businessDate.toISOString().slice(0, 10),
       createdAt: booking.createdAt.toISOString(),
       verifiedAt: booking.verifiedAt?.toISOString() ?? null,
+      lastEditedAt: booking.lastEditedAt?.toISOString() ?? null,
     })),
   };
 }

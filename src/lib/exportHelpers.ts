@@ -55,7 +55,7 @@ export function buildExcelBuffer(bookings: BookingRow[], dates: string[], sheetT
           booking.phone,
           `${booking.staffName}  Rs ${booking.totalAmount}`,
         ];
-        if (booking.advanceAmount > 0) lines.push(`Adv Rs ${booking.advanceAmount} ${booking.paymentMode}`);
+        if (booking.advanceAmount > 0) lines.push(`Adv Rs ${booking.advanceAmount} ${booking.advancePaymentMode}`);
         if (booking.timeOverride) lines.push(booking.timeOverride);
         ws[XLSX.utils.encode_cell({ r: row, c: col })] = { v: lines.join("\n"), t: "s" };
       });
@@ -64,16 +64,16 @@ export function buildExcelBuffer(bookings: BookingRow[], dates: string[], sheetT
 
   const totalRows = [
     { label: "Daily Total", filter: () => true },
-    { label: "Cash", filter: (booking: BookingRow) => booking.paymentMode === "CASH" },
-    { label: "DK Bank", filter: (booking: BookingRow) => booking.paymentMode === "DK_BANK" },
-    { label: "HG Bank", filter: (booking: BookingRow) => booking.paymentMode === "HG_BANK" },
+    { label: "Cash", filter: (booking: BookingRow) => booking.advancePaymentMode === "CASH" },
+    { label: "DK Bank", filter: (booking: BookingRow) => booking.advancePaymentMode === "DK_BANK" },
+    { label: "HG Bank", filter: (booking: BookingRow) => booking.advancePaymentMode === "HG_BANK" },
   ];
   const baseRow = 2 + TIME_SLOTS.length + 1;
   totalRows.forEach(({ label, filter }, rowIndex) => {
     ws[XLSX.utils.encode_cell({ r: baseRow + rowIndex, c: 0 })] = { v: label, t: "s" };
     dates.forEach((date, dateIndex) => {
       const dayBookings = bookings.filter((booking) => booking.businessDate === date && filter(booking));
-      const sum = dayBookings.reduce((total, booking) => total + booking.totalAmount, 0);
+      const sum = dayBookings.reduce((total, booking) => total + (label === "Daily Total" ? booking.totalAmount : booking.advanceAmount), 0);
       const col = 1 + dateIndex * dateSpan;
       ws[XLSX.utils.encode_cell({ r: baseRow + rowIndex, c: col })] = {
         v: sum > 0 ? `Rs ${sum.toLocaleString("en-IN")}` : "",
@@ -117,7 +117,7 @@ export async function buildPdfBuffer(bookings: BookingRow[], title: string): Pro
       booking.phone,
       booking.totalAmount.toLocaleString("en-IN"),
       booking.advanceAmount > 0 ? booking.advanceAmount.toLocaleString("en-IN") : "-",
-      booking.paymentMode.replace("_", " "),
+      booking.advancePaymentMode.replace("_", " "),
       booking.staffName,
       booking.status,
     ]),

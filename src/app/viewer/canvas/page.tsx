@@ -8,7 +8,7 @@ import { authOptions } from "@/lib/auth";
 import { parseBusinessDate } from "@/lib/businessDate";
 import { getCanvasData } from "@/lib/dashboard";
 
-export default async function SuperAdminCanvasPage({ searchParams }: { searchParams: { date?: string } }) {
+export default async function ViewerCanvasPage({ searchParams }: { searchParams: { date?: string } }) {
   const session = await getServerSession(authOptions);
   if (!session?.user) redirect("/login");
   const businessDate = parseBusinessDate(searchParams.date);
@@ -16,8 +16,8 @@ export default async function SuperAdminCanvasPage({ searchParams }: { searchPar
 
   return (
     <>
-      <PageHeader eyebrow="Super Admin" title="Owner Canvas" description="Full control view with direct edit access, totals, and edit-request notifications." />
-      <DailyCanvas role="SUPER_ADMIN" userId={session.user.id} businessDate={businessDate.toISOString().slice(0, 10)} {...serializeCanvasData(data)} />
+      <PageHeader eyebrow="Viewer" title="Read-only Canvas" description="Display-only schedule view with no booking actions or financial summary." />
+      <DailyCanvas role="VIEWER" userId={session.user.id} businessDate={businessDate.toISOString().slice(0, 10)} {...serializeCanvasData(data)} />
     </>
   );
 }

@@ -2,7 +2,8 @@
 
 import { useMemo, useState } from "react";
 import toast from "react-hot-toast";
-import { PAYMENT_MODES, TIME_SLOTS, TURFS } from "@/lib/constants";
+import { PAYMENT_MODES, REFERENCE_NAMES, TURFS, slotToTimeRange, timeRangeToSlot } from "@/lib/constants";
+import { TimeRangePicker } from "@/components/ui/TimeRangePicker";
 import type { BookingRow } from "@/types";
 
 export interface DirectEditModalProps {
@@ -17,12 +18,15 @@ export function DirectEditModal({ booking, onClose, onSaved }: DirectEditModalPr
     phone: booking.phone,
     turfNumber: String(booking.turfNumber),
     businessDate: booking.businessDate,
-    timeSlot: booking.timeSlot,
+    fromTime: slotToTimeRange(booking.timeSlot).from,
+    toTime: slotToTimeRange(booking.timeSlot).to,
     timeOverride: booking.timeOverride ?? "",
     totalAmount: String(booking.totalAmount),
     advanceAmount: String(booking.advanceAmount),
-    paymentMode: booking.paymentMode,
+    advancePaymentMode: booking.advancePaymentMode || booking.paymentMode || "CASH",
+    cashPortion: String(booking.cashPortion ?? booking.cashAmount ?? 0),
     cashAmount: String(booking.cashAmount ?? 0),
+    referenceName: booking.referenceName ?? "",
     notes: booking.notes ?? "",
   });
   const [forceOverride, setForceOverride] = useState(false);
@@ -33,9 +37,9 @@ export function DirectEditModal({ booking, onClose, onSaved }: DirectEditModalPr
   const slotChanged = useMemo(
     () =>
       Number(form.turfNumber) !== booking.turfNumber ||
-      form.timeSlot !== booking.timeSlot ||
+      timeRangeToSlot(form.fromTime, form.toTime) !== booking.timeSlot ||
       form.businessDate !== booking.businessDate,
-    [booking.businessDate, booking.timeSlot, booking.turfNumber, form.businessDate, form.timeSlot, form.turfNumber],
+    [booking.businessDate, booking.timeSlot, booking.turfNumber, form.businessDate, form.fromTime, form.toTime, form.turfNumber],
   );
 
   function update(name: keyof typeof form, value: string) {
@@ -50,7 +54,7 @@ export function DirectEditModal({ booking, onClose, onSaved }: DirectEditModalPr
     const params = new URLSearchParams({
       businessDate: form.businessDate,
       turfNumber: form.turfNumber,
-      timeSlot: form.timeSlot,
+      timeSlot: timeRangeToSlot(form.fromTime, form.toTime),
     });
     const response = await fetch(`/api/bookings?${params}`);
     if (!response.ok) return null;
@@ -64,7 +68,7 @@ export function DirectEditModal({ booking, onClose, onSaved }: DirectEditModalPr
     event.preventDefault();
     setError("");
 
-    if (!form.customerName.trim() || !form.phone.trim() || !form.businessDate || !form.timeSlot) {
+    if (!form.customerName.trim() || !form.phone.trim() || !form.businessDate || !form.fromTime || !form.toTime) {
       setError("Customer, phone, date, and time slot are required.");
       return;
     }
@@ -84,12 +88,14 @@ export function DirectEditModal({ booking, onClose, onSaved }: DirectEditModalPr
         phone: form.phone,
         turfNumber: Number(form.turfNumber),
         businessDate: form.businessDate,
-        timeSlot: form.timeSlot,
+        timeSlot: timeRangeToSlot(form.fromTime, form.toTime),
         timeOverride: form.timeOverride || null,
         totalAmount: Number(form.totalAmount),
         advanceAmount: Number(form.advanceAmount),
-        paymentMode: form.paymentMode,
-        cashAmount: Number(form.cashAmount || 0),
+        advancePaymentMode: form.advancePaymentMode,
+        cashPortion: form.advancePaymentMode === "CASH" ? Number(form.cashPortion || 0) : null,
+        cashAmount: form.advancePaymentMode === "CASH" ? Number(form.cashPortion || 0) : 0,
+        referenceName: form.referenceName || null,
         notes: form.notes || null,
         forceOverride,
       }),
@@ -158,19 +164,23 @@ export function DirectEditModal({ booking, onClose, onSaved }: DirectEditModalPr
             </select>
           </Field>
           <Field label="Time Slot">
-            <select value={form.timeSlot} onChange={(e) => update("timeSlot", e.target.value)} className={inputClass}>
-              {TIME_SLOTS.map((slot) => <option key={slot}>{slot}</option>)}
-            </select>
+            <TimeRangePicker fromValue={form.fromTime} toValue={form.toTime} onFromChange={(value) => update("fromTime", value)} onToChange={(value) => update("toTime", value)} />
           </Field>
           <Field label="Time Override"><input value={form.timeOverride} onChange={(e) => update("timeOverride", e.target.value)} className={inputClass} /></Field>
           <Field label="Total Amount"><input type="number" value={form.totalAmount} onChange={(e) => update("totalAmount", e.target.value)} className={inputClass} /></Field>
           <Field label="Advance Amount"><input type="number" value={form.advanceAmount} onChange={(e) => update("advanceAmount", e.target.value)} className={inputClass} /></Field>
-          <Field label="Payment Mode">
-            <select value={form.paymentMode} onChange={(e) => update("paymentMode", e.target.value)} className={inputClass}>
-              {PAYMENT_MODES.map((mode) => <option key={mode}>{mode}</option>)}
+          <Field label="Advance Payment Mode">
+            <select value={form.advancePaymentMode} onChange={(e) => update("advancePaymentMode", e.target.value)} className={inputClass}>
+              {PAYMENT_MODES.filter((mode) => mode !== "SPLIT").map((mode) => <option key={mode}>{mode}</option>)}
             </select>
           </Field>
-          <Field label="Cash Amount"><input type="number" value={form.cashAmount} onChange={(e) => update("cashAmount", e.target.value)} className={inputClass} /></Field>
+          {form.advancePaymentMode === "CASH" ? <Field label="Cash in Hand"><input type="number" value={form.cashPortion} onChange={(e) => update("cashPortion", e.target.value)} className={inputClass} /></Field> : null}
+          <Field label="Reference / Booked By">
+            <select value={form.referenceName} onChange={(e) => update("referenceName", e.target.value)} className={inputClass}>
+              <option value="">Select reference</option>
+              {REFERENCE_NAMES.map((name) => <option key={name}>{name}</option>)}
+            </select>
+          </Field>
           <Field label="Notes" className="md:col-span-2">
             <textarea value={form.notes} onChange={(e) => update("notes", e.target.value)} className={inputClass} rows={3} />
           </Field>

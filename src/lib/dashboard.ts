@@ -19,15 +19,23 @@ export async function getCanvasData(businessDate: Date) {
     (summary, booking) => {
       summary.total += booking.totalAmount;
       summary.count += 1;
-      const paymentMode = booking.paymentMode as PaymentModeType;
-      summary[paymentMode] += booking.totalAmount;
+      summary.pendingAmount += Math.max(booking.totalAmount - booking.advanceAmount, 0);
+      const paymentMode = booking.advancePaymentMode as PaymentModeType;
+      if (paymentMode === PaymentMode.SPLIT) {
+        const cashPortion = booking.cashPortion ?? 0;
+        summary.CASH += cashPortion;
+        summary.HG_BANK += Math.max(booking.advanceAmount - cashPortion, 0);
+      } else {
+        summary[paymentMode] += booking.advanceAmount;
+      }
       if (booking.status === BookingStatus.PENDING) summary.pending += 1;
       return summary;
     },
-    { total: 0, count: 0, pending: 0, CASH: 0, DK_BANK: 0, HG_BANK: 0, SPLIT: 0 } as Record<PaymentModeType, number> & {
+    { total: 0, count: 0, pending: 0, pendingAmount: 0, CASH: 0, DK_BANK: 0, HG_BANK: 0, SPLIT: 0 } as Record<PaymentModeType, number> & {
       total: number;
       count: number;
       pending: number;
+      pendingAmount: number;
     },
   );
 
@@ -70,8 +78,8 @@ export async function getAnalytics(period = "day", date = new Date()) {
 
   const paymentTotals = bookings.reduce(
     (summary, booking) => {
-      const paymentMode = booking.paymentMode as PaymentModeType;
-      summary[paymentMode] += booking.totalAmount;
+      const paymentMode = booking.advancePaymentMode as PaymentModeType;
+      summary[paymentMode] += booking.advanceAmount;
       summary.total += booking.totalAmount;
       summary.count += 1;
       return summary;

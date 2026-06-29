@@ -1,16 +1,21 @@
 import crypto from "crypto";
 import fs from "fs";
 import path from "path";
+import bcrypt from "bcryptjs";
 import { prisma } from "../src/lib/prisma";
-import { BookingStatus, PaymentMode, Role, TIME_SLOTS } from "../src/lib/constants";
+import { BookingStatus, PaymentMode, REFERENCE_NAMES, Role, TIME_SLOTS } from "../src/lib/constants";
 import { bookingSnapshot } from "../src/lib/server";
 import { hashSecret } from "../src/lib/otp";
 
-const supervisors = [
-  { username: "rakesh", displayName: "Rakesh" },
-  { username: "hiren", displayName: "Hiren" },
-  { username: "nikunj", displayName: "Nikunj" },
-  { username: "hardik", displayName: "Hardik" },
+const seedUsers = [
+  { username: "hiren", displayName: "Hiren", role: Role.SUPER_ADMIN },
+  { username: "nikunj", displayName: "Nikunj", role: Role.SUPER_ADMIN },
+  { username: "dk", displayName: "DK", role: Role.ADMIN },
+  { username: "hardik", displayName: "Hardik", role: Role.ADMIN },
+  { username: "rakesh", displayName: "Rakesh", role: Role.SUPERVISOR },
+  { username: "supervisor2", displayName: "Supervisor 2", role: Role.SUPERVISOR },
+  { username: "nitin", displayName: "Nitin", role: Role.VIEWER },
+  { username: "viewer2", displayName: "Viewer 2", role: Role.VIEWER },
 ];
 
 const names = [
@@ -43,53 +48,32 @@ async function main() {
     prisma.user.deleteMany(),
   ]);
 
-  const passwordHash = await hashSecret("super@123");
-  const adminPasswordHash = await hashSecret("admin@123");
   const adminPin = await hashSecret("4321");
 
-  const superadmin = await prisma.user.create({
-    data: {
-      username: "superadmin",
-      passwordHash,
-      role: Role.SUPER_ADMIN,
-      displayName: "Super Admin",
-      isFirstLogin: false,
-      otpUsed: true,
-    },
-  });
-
-  const admin = await prisma.user.create({
-    data: {
-      username: "admin",
-      passwordHash: adminPasswordHash,
-      role: Role.ADMIN,
-      displayName: "Admin",
-      isFirstLogin: false,
-      otpUsed: true,
-    },
-  });
-
-  const supervisorUsers = await Promise.all(
-    supervisors.map(async (person) =>
+  const users = await Promise.all(
+    seedUsers.map((person) =>
       prisma.user.create({
         data: {
           username: person.username,
-          passwordHash: await hashSecret(`${person.username}@123`),
-          role: Role.SUPERVISOR,
+          passwordHash: bcrypt.hashSync(`${person.username}@123`, 12),
+          role: person.role,
           displayName: person.displayName,
-          isFirstLogin: false,
-          otpUsed: true,
+          isFirstLogin: true,
+          otpHash: null,
+          otpUsed: false,
         },
       }),
     ),
   );
+  const superadmin = users.find((user) => user.role === Role.SUPER_ADMIN)!;
+  const admin = users.find((user) => user.role === Role.ADMIN)!;
 
   await prisma.settings.create({
     data: {
       adminPin,
       turfs: JSON.stringify(["Turf 1", "Turf 2", "Turf 3", "Turf 4"]),
       timeSlots: JSON.stringify(TIME_SLOTS),
-      paymentModes: JSON.stringify(["CASH", "DK_BANK", "HG_BANK", "SPLIT"]),
+      paymentModes: JSON.stringify(["CASH", "DK_BANK", "HG_BANK"]),
       isSetupComplete: false,
     },
   });
@@ -115,8 +99,10 @@ async function main() {
         phone: `98765${String(10000 + index).slice(1)}`,
         totalAmount,
         advanceAmount,
-        paymentMode,
+        advancePaymentMode: paymentMode,
+        cashPortion: paymentMode === PaymentMode.SPLIT ? Math.min(advanceAmount, 500) : paymentMode === PaymentMode.CASH ? advanceAmount : null,
         cashAmount,
+        referenceName: REFERENCE_NAMES[index % REFERENCE_NAMES.length],
         staffName: supervisor.displayName,
         notes: index % 5 === 0 ? "Ball and lights included" : null,
         status: index < 20 ? BookingStatus.CONFIRMED : BookingStatus.PENDING,
@@ -172,7 +158,7 @@ async function main() {
     const proposed = {
       ...original,
       totalAmount: original.totalAmount + 500,
-      paymentMode: index === 2 ? PaymentMode.HG_BANK : original.paymentMode,
+      advancePaymentMode: index === 2 ? PaymentMode.HG_BANK : original.advancePaymentMode,
     };
 
     await prisma.bookingEditRequest.create({

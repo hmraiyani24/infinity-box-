@@ -54,6 +54,10 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL(dashboardForRole(token.role as string), req.url));
   }
 
+  if (path.startsWith("/viewer") && !["VIEWER", "SUPERVISOR", "ADMIN", "SUPER_ADMIN"].includes(token.role as string)) {
+    return NextResponse.redirect(new URL(dashboardForRole(token.role as string), req.url));
+  }
+
   return NextResponse.next();
 }
 

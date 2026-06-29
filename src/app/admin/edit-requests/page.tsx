@@ -24,8 +24,8 @@ export default async function AdminEditRequestsPage() {
           return [
             request.booking.customerName,
             request.requestedBy.displayName,
-            `${original.totalAmount} · ${original.paymentMode} · Turf ${original.turfNumber}`,
-            <span className="text-amber-200">{`${proposed.totalAmount} · ${proposed.paymentMode} · Turf ${proposed.turfNumber}`}</span>,
+            `${original.totalAmount} · ${original.advancePaymentMode ?? original.paymentMode} · Turf ${original.turfNumber}`,
+            <span className="text-amber-200">{`${proposed.totalAmount} · ${proposed.advancePaymentMode ?? proposed.paymentMode} · Turf ${proposed.turfNumber}`}</span>,
             request.createdAt.toLocaleString("en-IN"),
             <EditRequestControls id={request.id} />,
           ];

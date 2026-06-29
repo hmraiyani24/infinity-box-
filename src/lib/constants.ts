@@ -1,4 +1,5 @@
 export const Role = {
+  VIEWER: "VIEWER",
   SUPERVISOR: "SUPERVISOR",
   ADMIN: "ADMIN",
   SUPER_ADMIN: "SUPER_ADMIN",
@@ -84,6 +85,8 @@ export const PAYMENT_MODE_META: Record<PaymentMode, { label: string; color: stri
   SPLIT: { label: "Split", color: "#F59E0B" },
 };
 
+export const REFERENCE_NAMES = ["Rakesh", "Hiren", "NM", "ND", "DK", "HS"] as const;
+
 export const STATUS_META: Record<BookingStatus, { label: string; color: string }> = {
   PENDING: { label: "Pending", color: "#F59E0B" },
   CONFIRMED: { label: "Confirmed", color: "#22C55E" },
@@ -91,15 +94,41 @@ export const STATUS_META: Record<BookingStatus, { label: string; color: string }
 };
 
 export const ROLE_LABELS: Record<Role, string> = {
+  VIEWER: "Viewer",
   SUPERVISOR: "Supervisor",
   ADMIN: "Admin",
   SUPER_ADMIN: "Super Admin",
 };
 
 export const DASHBOARD_BY_ROLE: Record<Role, string> = {
+  VIEWER: "/viewer/canvas",
   SUPERVISOR: "/supervisor/canvas",
   ADMIN: "/admin/canvas",
   SUPER_ADMIN: "/superadmin/canvas",
 };
 
 export const ADMIN_ROLES: Role[] = ["ADMIN", "SUPER_ADMIN"];
+
+export function formatSlotDisplay(slot: string): { from: string; to: string } {
+  const [fromPart, toPart] = slot.split(" to ");
+  const formatPart = (part: string) => {
+    const trimmed = part.trim();
+    if (trimmed.includes(":")) return trimmed;
+    const [hour, period] = trimmed.split(" ");
+    return `${hour}:00 ${period}`;
+  };
+
+  return {
+    from: formatPart(fromPart || ""),
+    to: formatPart(toPart || ""),
+  };
+}
+
+export function timeRangeToSlot(from: string, to: string): string {
+  const clean = (value: string) => value.replace(":00", "").trim();
+  return `${clean(from)} to ${clean(to)}`;
+}
+
+export function slotToTimeRange(slot: string): { from: string; to: string } {
+  return formatSlotDisplay(slot);
+}

@@ -15,7 +15,7 @@ export async function GET(req: Request) {
 
     const bookings = await prisma.booking.findMany({
       where: { status: { not: "DELETED" }, businessDate: { gte: since } },
-      select: { businessDate: true, totalAmount: true, paymentMode: true },
+      select: { businessDate: true, totalAmount: true, advanceAmount: true, advancePaymentMode: true },
       orderBy: { businessDate: "asc" },
     });
 
@@ -24,9 +24,9 @@ export async function GET(req: Request) {
       const key = format(new Date(booking.businessDate), "MMM yy");
       byMonth[key] ??= { total: 0, cash: 0, dkBank: 0, hgBank: 0 };
       byMonth[key].total += booking.totalAmount;
-      if (booking.paymentMode === "CASH") byMonth[key].cash += booking.totalAmount;
-      if (booking.paymentMode === "DK_BANK") byMonth[key].dkBank += booking.totalAmount;
-      if (booking.paymentMode === "HG_BANK") byMonth[key].hgBank += booking.totalAmount;
+      if (booking.advancePaymentMode === "CASH") byMonth[key].cash += booking.advanceAmount;
+      if (booking.advancePaymentMode === "DK_BANK") byMonth[key].dkBank += booking.advanceAmount;
+      if (booking.advancePaymentMode === "HG_BANK") byMonth[key].hgBank += booking.advanceAmount;
     }
 
     const allBookings = await prisma.booking.findMany({

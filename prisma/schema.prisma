@@ -41,8 +41,10 @@ model Booking {
   phone                 String
   totalAmount           Float
   advanceAmount         Float                @default(0)
-  paymentMode           String
+  advancePaymentMode    String               @default("CASH") @map("paymentMode")
+  cashPortion           Float?
   cashAmount            Float                @default(0)
+  referenceName         String?
   staffName             String
   notes                 String?
   status                String               @default("PENDING")
@@ -54,6 +56,10 @@ model Booking {
   verifiedById          String?
   verifiedBy            User?                @relation("VerifiedBy", fields: [verifiedById], references: [id])
   verifiedAt            DateTime?
+
+  lastEditedById        String?
+  lastEditedAt          DateTime?
+  lastEditedByName      String?
 
   deletedById           String?
   deletedBy             User?                @relation("DeletedBy", fields: [deletedById], references: [id])

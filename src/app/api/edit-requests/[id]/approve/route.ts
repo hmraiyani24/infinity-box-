@@ -16,7 +16,12 @@ export async function PATCH(_req: Request, { params }: { params: { id: string } 
     const booking = await prisma.$transaction(async (tx) => {
       const updated = await tx.booking.update({
         where: { id: request.bookingId },
-        data: snapshotToBookingUpdate(proposed),
+        data: {
+          ...snapshotToBookingUpdate(proposed),
+          lastEditedById: user.id,
+          lastEditedAt: new Date(),
+          lastEditedByName: user.displayName,
+        },
       });
       await tx.bookingEditRequest.update({
         where: { id: request.id },

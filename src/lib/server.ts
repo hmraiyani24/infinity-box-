@@ -15,8 +15,10 @@ export type BookingPayload = {
   phone: string;
   totalAmount: number;
   advanceAmount: number;
-  paymentMode: PaymentMode;
+  advancePaymentMode: PaymentMode;
+  cashPortion?: number | null;
   cashAmount: number;
+  referenceName?: string | null;
   notes?: string | null;
 };
 
@@ -72,11 +74,14 @@ export function parseBookingPayload(input: Record<string, unknown>): BookingPayl
   const timeSlot = String(input.timeSlot || "");
   const customerName = String(input.customerName || "").trim();
   const phone = normalizePhone(String(input.phone || ""));
-  const paymentMode = String(input.paymentMode || "") as PaymentMode;
+  const advancePaymentMode = String(input.advancePaymentMode || input.paymentMode || "CASH") as PaymentMode;
   const turfNumber = Number(input.turfNumber);
   const totalAmount = Number(input.totalAmount);
   const advanceAmount = Number(input.advanceAmount || 0);
-  const cashAmount = Number(input.cashAmount || (paymentMode === "CASH" ? advanceAmount : 0));
+  const cashPortion = input.cashPortion === undefined || input.cashPortion === null || input.cashPortion === ""
+    ? null
+    : Number(input.cashPortion);
+  const cashAmount = Number(input.cashAmount || (advancePaymentMode === "CASH" ? advanceAmount : cashPortion || 0));
 
   if (!dateValue || !timeSlot || !customerName || !phone) {
     throw new ResponseError("Date, time slot, customer, and phone are required");
@@ -94,12 +99,16 @@ export function parseBookingPayload(input: Record<string, unknown>): BookingPayl
     throw new ResponseError("Advance amount is invalid");
   }
 
-  if (!["CASH", "DK_BANK", "HG_BANK", "SPLIT"].includes(paymentMode)) {
+  if (!["CASH", "DK_BANK", "HG_BANK", "SPLIT"].includes(advancePaymentMode)) {
     throw new ResponseError("Invalid payment mode");
   }
 
-  if ((paymentMode === "CASH" || paymentMode === "SPLIT") && cashAmount < 0) {
+  if ((advancePaymentMode === "CASH" || advancePaymentMode === "SPLIT") && cashAmount < 0) {
     throw new ResponseError("Cash amount is invalid");
+  }
+
+  if (cashPortion !== null && (!Number.isFinite(cashPortion) || cashPortion < 0 || cashPortion > advanceAmount)) {
+    throw new ResponseError("Cash portion is invalid");
   }
 
   return {
@@ -111,8 +120,10 @@ export function parseBookingPayload(input: Record<string, unknown>): BookingPayl
     phone,
     totalAmount,
     advanceAmount,
-    paymentMode,
+    advancePaymentMode,
+    cashPortion,
     cashAmount,
+    referenceName: optionalString(input.referenceName),
     notes: optionalString(input.notes),
   };
 }
@@ -126,8 +137,10 @@ export function bookingSnapshot(booking: {
   phone: string;
   totalAmount: number;
   advanceAmount: number;
-  paymentMode: string;
+  advancePaymentMode: string;
+  cashPortion: number | null;
   cashAmount: number;
+  referenceName: string | null;
   notes: string | null;
 }) {
   return {
@@ -139,8 +152,10 @@ export function bookingSnapshot(booking: {
     phone: booking.phone,
     totalAmount: booking.totalAmount,
     advanceAmount: booking.advanceAmount,
-    paymentMode: booking.paymentMode,
+    advancePaymentMode: booking.advancePaymentMode,
+    cashPortion: booking.cashPortion,
     cashAmount: booking.cashAmount,
+    referenceName: booking.referenceName,
     notes: booking.notes,
   };
 }
@@ -155,8 +170,10 @@ export function snapshotToBookingUpdate(snapshot: ReturnType<typeof bookingSnaps
     phone: normalizePhone(snapshot.phone),
     totalAmount: Number(snapshot.totalAmount),
     advanceAmount: Number(snapshot.advanceAmount),
-    paymentMode: snapshot.paymentMode as PaymentMode,
+    advancePaymentMode: snapshot.advancePaymentMode as PaymentMode,
+    cashPortion: snapshot.cashPortion === null || snapshot.cashPortion === undefined ? null : Number(snapshot.cashPortion),
     cashAmount: Number(snapshot.cashAmount || 0),
+    referenceName: snapshot.referenceName,
     notes: snapshot.notes,
   };
 }

@@ -19,6 +19,7 @@ export async function GET(req: Request) {
       businessDate: booking.businessDate.toISOString().slice(0, 10),
       createdAt: booking.createdAt.toISOString(),
       verifiedAt: booking.verifiedAt?.toISOString() ?? null,
+      lastEditedAt: booking.lastEditedAt?.toISOString() ?? null,
     }));
     const dates = Array.from(new Set(rows.map((booking) => booking.businessDate))).sort();
     const buffer = buildExcelBuffer(rows, dates, sheetTitle);

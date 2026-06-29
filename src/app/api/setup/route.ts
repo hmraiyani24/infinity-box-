@@ -42,7 +42,7 @@ export async function POST(req: Request) {
         adminPin: "",
         turfs: JSON.stringify(["Turf 1", "Turf 2", "Turf 3", "Turf 4"]),
         timeSlots: JSON.stringify(TIME_SLOTS),
-        paymentModes: JSON.stringify(["CASH", "DK_BANK", "HG_BANK", "SPLIT"]),
+        paymentModes: JSON.stringify(["CASH", "DK_BANK", "HG_BANK"]),
         isSetupComplete: false,
       },
       update: {},

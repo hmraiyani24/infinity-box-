@@ -45,9 +45,14 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       ...(body.timeOverride !== undefined ? { timeOverride: body.timeOverride ? String(body.timeOverride) : null } : {}),
       ...(body.totalAmount !== undefined ? { totalAmount: Number(body.totalAmount) } : {}),
       ...(body.advanceAmount !== undefined ? { advanceAmount: Number(body.advanceAmount) } : {}),
-      ...(body.paymentMode !== undefined ? { paymentMode: String(body.paymentMode) } : {}),
+      ...(body.advancePaymentMode !== undefined || body.paymentMode !== undefined ? { advancePaymentMode: String(body.advancePaymentMode || body.paymentMode) } : {}),
+      ...(body.cashPortion !== undefined ? { cashPortion: body.cashPortion === null || body.cashPortion === "" ? null : Number(body.cashPortion) } : {}),
       ...(body.cashAmount !== undefined ? { cashAmount: Number(body.cashAmount) } : {}),
+      ...(body.referenceName !== undefined ? { referenceName: body.referenceName ? String(body.referenceName) : null } : {}),
       ...(body.notes !== undefined ? { notes: body.notes ? String(body.notes) : null } : {}),
+      lastEditedById: user.id,
+      lastEditedAt: new Date(),
+      lastEditedByName: user.displayName,
     };
 
     const booking = await prisma.booking.update({
